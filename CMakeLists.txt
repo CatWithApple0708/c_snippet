@@ -39,7 +39,27 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 # PC
 project(HappySwitchSoundBoxV2)
 
-####  ####
-add_executable(human_detect_data_analys
-human_detect_data_analys.cc
-)
+# ####  ####
+# set(ALL_SRC human_num_analys_algo.c loop_buffer.c loop_queue.c)
+# #  _____       _
+# # |_   _|__ __| |_
+# #   | |/ -_|_-<  _|
+# #   |_|\___/__/\__|
+# add_executable(test_human_num_analys_algo ./test/test_human_num_analys_algo.c
+#                                           ${ALL_SRC})
+
+#### gtest_main ####
+add_executable(test_main
+               loop_buffer.c
+               loop_queue.c
+               ./test/gtest_loop_buffer.cc
+               ./test/gtest_loop_queue.cc)
+target_link_libraries(test_main
+                      gtest_main
+                      gtest
+                      gmock
+                      glog
+                      gflags)
+target_link_directories(test_main PRIVATE gtest_dep/pc/lib)
+target_include_directories(test_main PRIVATE gtest_dep/pc/include ./)
+#### end gtest_main .......

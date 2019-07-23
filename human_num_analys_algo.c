@@ -2,56 +2,22 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include "macro.h"
 
-BUILD_ASSERT(kOrigionDataProcessWindowsSize <= 256);
-BUILD_ASSERT(kOrigionDataProcessWindowsSize != 0);
-//计算理由，人通过短时间内触发的信号最多5个，
-// AS,AE,BS,AS(第二个人),BE，如果数据被及时处理，则buffer中不会积累过多的数据
-//当出现类似AS,AE,BS,AS,AE,AS,AE, 将会移除一组AS,AE
-BUILD_ASSERT(kSignalArrarySzie >= 10);
-BUILD_ASSERT(kMaxNumSum == kOrigionDataProcessWindowsSize);
-BUILD_ASSERT(kHighPowerThreshold < kMaxPowerAverage);
-BUILD_ASSERT(kHighNumSumThreshold < kMaxNumSum);
-BUILD_ASSERT(kLowPowerThreshold < kMaxPowerAverage);
-BUILD_ASSERT(kLowNumSumThreshold < kMaxNumSum);
-
-struct human_detecter_handler_s {
-  // WARNING:此处存储能量，能量按照百分比存储即数值0-100,发送的红外全部收到100
-  loop_queue_t a_origion_data_queue;
-  loop_queue_t b_origion_data_queue;
-
-  // 原始数据buffer
-  loop_buffer_t a_origion_data_buffer;
-  loop_buffer_t b_origion_data_buffer;
-
-  // 数量统计 buffer
-  loop_buffer_t a_num_sum_buffer;
-  loop_buffer_t b_num_sum_buffer;
-
-  // 能量统计 buffer
-  loop_buffer_t a_power_average_buffer;
-  loop_buffer_t b_power_average_buffer;
-
-  // AB开始结束
-  ir_signal_t signals[kSignalArrarySzie];
-  uint8_t signals_size;
-  /**
-   * @brief 表示原始数据已经有多少已经被处理了
-   */
-  uint32_t orgion_data_process_offset;
-
-  /**
-   * @brief 依赖 num_sum 和　power_average去计算signal时候的偏移
-   */
-  uint32_t prepare_ir_signals_process_offset;
-
-  ir_receiver_state_e a_ir_receive_state;
-  ir_receiver_state_e b_ir_receive_state;
-
-  on_judge_result_t on_judge_result;
-};
-
+static __attribute__((__unused__)) void build_check_func() {
+  BUILD_ASSERT(kOrigionDataProcessWindowsSize <= 256);
+  BUILD_ASSERT(kOrigionDataProcessWindowsSize != 0);
+  //计算理由，人通过短时间内触发的信号最多5个，
+  // AS,AE,BS,AS(第二个人),BE，如果数据被及时处理，则buffer中不会积累过多的数据
+  //当出现类似AS,AE,BS,AS,AE,AS,AE, 将会移除一组AS,AE
+  BUILD_ASSERT(kSignalArrarySzie >= 10);
+  BUILD_ASSERT(kMaxNumSum == kOrigionDataProcessWindowsSize);
+  BUILD_ASSERT(kHighPowerThreshold < kMaxPowerAverage);
+  BUILD_ASSERT(kHighNumSumThreshold < kMaxNumSum);
+  BUILD_ASSERT(kLowPowerThreshold < kMaxPowerAverage);
+  BUILD_ASSERT(kLowNumSumThreshold < kMaxNumSum);
+}
 /*
    ___ _        _   _
   / __| |_ __ _| |_(_)__
@@ -328,10 +294,10 @@ static void prepare_ir_signals_internal(ir_receive_signal_time_domain_e domain,
 
 static bool prepare_ir_signals(uint32_t offset, bool *signals_update) {
   loop_buffer_t *apa_buffer =
-      &s_phuman_detecter_handler->a_num_average_buffer;
+      &s_phuman_detecter_handler->a_power_average_buffer;
 
   loop_buffer_t *bpa_buffer =
-      &s_phuman_detecter_handler->b_num_average_buffer;
+      &s_phuman_detecter_handler->b_power_average_buffer;
   //计算A
 
   if (loop_buffer_get_useful_end_offset(apa_buffer) <
@@ -352,7 +318,7 @@ static bool prepare_ir_signals(uint32_t offset, bool *signals_update) {
   return true;
 }
 /**
- * @brief 
+ * @brief
  *
  */
 
@@ -483,3 +449,36 @@ void human_num_analys_process() {
     *odp_offset = *odp_offset + kOrigionDataProcessWindowsMoveSize;
   }
 };
+
+/**
+ * @brief 模块初始化
+ *
+ */
+void human_num_analys_init() {
+}
+
+/**
+ * @brief 压入一个新的红外原始数据
+ *
+ * @param doamin
+ * @param origion_data (0--100)
+ */
+void human_num_analys_push_origion_data(ir_receive_signal_time_domain_e doamin,
+                                        uint8_t origion_data) {}
+/**
+ * @brief 人数检测分析程序，应当运行在某个定时器中，每当数据更新的时候，运行一次
+ */
+
+/**
+ * @brief 获得human_num_analys_process所期望的被调度的周期
+ *
+ * @return int
+ */
+int human_num_analys_get_recommend_process_period() {
+   return kRecomendedProcessPeriod;
+}
+/**
+ * @brief 每当重新开启一次新的计算的时候，用来复位状态
+ *
+ */
+void human_num_analys_reset() {}
