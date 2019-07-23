@@ -25,10 +25,13 @@ struct human_detecter_handler_s {
   loop_buffer_t a_origion_data_buffer;
   loop_buffer_t b_origion_data_buffer;
 
+  // 数量统计 buffer
+  loop_buffer_t a_num_sum_buffer;
+  loop_buffer_t b_num_sum_buffer;
 
   // 能量统计 buffer
-  loop_buffer_t a_num_average_buffer;
-  loop_buffer_t b_num_average_buffer;
+  loop_buffer_t a_power_average_buffer;
+  loop_buffer_t b_power_average_buffer;
 
   // AB开始结束
   ir_signal_t signals[kSignalArrarySzie];
@@ -237,27 +240,35 @@ static void prepare_ir_signals_internal(ir_receive_signal_time_domain_e domain,
                                         uint32_t max_offset,
                                         bool *signals_update) {
   loop_buffer_t *num_sum_buf;
-  loop_buffer_t *num_average_buf;
+  loop_buffer_t *power_average_buf;
   ir_receiver_state_e *ir_receive_state;
 
   if (domain == kADomain) {
-    num_average_buf = &s_phuman_detecter_handler->a_num_average_buffer;
+    num_sum_buf = &s_phuman_detecter_handler->a_num_sum_buffer;
+    power_average_buf = &s_phuman_detecter_handler->a_power_average_buffer;
     ir_receive_state = &s_phuman_detecter_handler->a_ir_receive_state;
   } else {
-    num_average_buf = &s_phuman_detecter_handler->b_num_average_buffer;
+    num_sum_buf = &s_phuman_detecter_handler->b_num_sum_buffer;
+    power_average_buf = &s_phuman_detecter_handler->b_power_average_buffer;
     ir_receive_state = &s_phuman_detecter_handler->b_ir_receive_state;
   }
+
+  // const static uint8_t kHighPowerThreshold = 75;
+  // const static uint8_t kHighNumSumThreshold = 15;
+  // const static uint8_t kLowPowerThreshold = 25;
+  // const static uint8_t kLowNumSumThreshold = 5;
 
   // toStartState
   if (*ir_receive_state == kOnReceiveingNothingState) {
     uint8_t curPowerAverageValue =
-        loop_buffer_get_data(num_average_buf, cur_offset);
+        loop_buffer_get_data(power_average_buf, cur_offset);
+    uint8_t cur_num_sum = loop_buffer_get_data(num_sum_buf, cur_offset);
 
     //   判断是否是上升趋势
     bool is_up_tend = true;
     for (unsigned i = cur_offset + 1; i < max_offset; ++i) {
-      if (loop_buffer_get_data(num_average_buf, i) <
-          loop_buffer_get_data(num_average_buf, i - 1)) {
+      if (loop_buffer_get_data(num_sum_buf, i) <
+          loop_buffer_get_data(num_sum_buf, i - 1)) {
         is_up_tend = false;
         break;
       }
@@ -284,12 +295,13 @@ static void prepare_ir_signals_internal(ir_receive_signal_time_domain_e domain,
 
   } else if (*ir_receive_state == kOnReceiveingIrDataState) {
     uint8_t curPowerAverageValue =
-        loop_buffer_get_data(num_average_buf, cur_offset);
+        loop_buffer_get_data(power_average_buf, cur_offset);
+    uint8_t cur_num_sum = loop_buffer_get_data(num_sum_buf, cur_offset);
 
     bool is_down_tend = true;
     for (unsigned i = cur_offset + 1; i < max_offset; ++i) {
-      if (loop_buffer_get_data(num_average_buf, i) >
-          loop_buffer_get_data(num_average_buf, i - 1)) {
+      if (loop_buffer_get_data(num_sum_buf, i) >
+          loop_buffer_get_data(num_sum_buf, i - 1)) {
         is_down_tend = false;
         break;
       }
