@@ -1,0 +1,8 @@
+cmake-build-*/
+.idea/*
+.vscode/
+build.sh
+build/
+compile_commands.json
+.ccls-cache/
+.ccls-cache/*
