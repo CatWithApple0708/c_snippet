@@ -38,6 +38,7 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
 # PC
 project(HappySwitchSoundBoxV2)
+include_directories(src)
 
 # ####  ####
 # set(ALL_SRC human_num_analys_algo.c loop_buffer.c loop_queue.c)
@@ -50,9 +51,9 @@ project(HappySwitchSoundBoxV2)
 
 #### gtest_main ####
 add_executable(test_main
-               loop_buffer.c
-               loop_queue.c
-               ./test/gtest_loop_buffer.cc
+               src/infinite_arrary.c
+               src/loop_queue.c
+               ./test/gtest_infinite_arrary.cc
                ./test/gtest_loop_queue.cc)
 target_link_libraries(test_main
                       gtest_main
