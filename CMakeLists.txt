@@ -38,7 +38,7 @@ set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
 # PC
 project(HappySwitchSoundBoxV2)
-include_directories(src)
+include_directories(src spdlog_dep)
 
 # ####  ####
 # #  _____       _
@@ -47,9 +47,9 @@ include_directories(src)
 # #   |_|\___/__/\__|
 add_executable(test_human_num_analys_algo
                src/human_num_analys_algo.c
-               ./test/test_human_num_analys_algo.c
                src/infinite_arrary.c
-               src/loop_queue.c)
+               src/loop_queue.c
+               ./test/test_human_num_analys_algo.cc)
 
 #### gtest_main ####
 add_executable(test_main

@@ -68,8 +68,7 @@ TEST(TestLoopBuffer, test_u32) {
     uint32_t buffer[20] = {0};
     infinite_arrary_init_u32(&loopbuff, buffer, ARRARY_SIZE(buffer));
 
-    EXPECT_TRUE(infinite_arrary_get_useful_start_offset_u32(&loopbuff) <
-                0);
+    EXPECT_TRUE(infinite_arrary_get_useful_start_offset_u32(&loopbuff) < 0);
     EXPECT_TRUE(infinite_arrary_get_useful_end_offset_u32(&loopbuff) < 0);
 
     for (unsigned i = 0; i < 20; ++i) {
@@ -87,8 +86,7 @@ TEST(TestLoopBuffer, test_u32) {
     uint32_t buffer[20] = {0};
     infinite_arrary_init_u32(&loopbuff, buffer, ARRARY_SIZE(buffer));
 
-    EXPECT_TRUE(infinite_arrary_get_useful_start_offset_u32(&loopbuff) <
-                0);
+    EXPECT_TRUE(infinite_arrary_get_useful_start_offset_u32(&loopbuff) < 0);
     EXPECT_TRUE(infinite_arrary_get_useful_end_offset_u32(&loopbuff) < 0);
 
     for (unsigned i = 0; i < 40; ++i) {

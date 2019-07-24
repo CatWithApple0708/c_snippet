@@ -77,9 +77,13 @@ struct ir_signal_s {
   //数量求和buffer，或者能量平均buffer的offset
   uint32_t offset;
 };
-
-typedef void (*on_judge_result_t)(human_moving_direction_t direction, int num);
 typedef struct human_detecter_handler_s human_detecter_handler_t;
+typedef void (*on_judge_result_t)(human_detecter_handler_t* handlers,
+                                  human_moving_direction_t direction, int num);
+typedef void (*on_new_num_sum_average_t)(human_detecter_handler_t* handlers,
+                                         uint8_t adata, uint8_t bdata);
+typedef void (*on_new_signal_t)(human_detecter_handler_t* handlers,
+                                ir_signal_t new_signal);
 
 struct human_detecter_handler_s {
   uint8_t a_origion_data_queue_buf[kLoopQueueSize];
@@ -119,13 +123,22 @@ struct human_detecter_handler_s {
   ir_receiver_state_e b_ir_receive_state;
 
   on_judge_result_t on_judge_result;
+
+  bool debug_mode;
+  on_new_num_sum_average_t on_new_num_sum_average;
+  on_new_signal_t on_new_signal;
 };
 /**
  * @brief 模块初始化
  *
  */
-void human_num_analys_init(human_detecter_handler_t* handlers);
+void human_num_analys_init(human_detecter_handler_t* handlers,
+                           on_judge_result_t on_judge_result);
 
+void human_num_analys_init_for_debug(
+    human_detecter_handler_t* handlers,
+    on_new_num_sum_average_t on_new_num_sum_average,
+    on_new_signal_t on_new_signal, on_judge_result_t on_judge_result);
 /**
  * @brief 压入一个新的红外原始数据
  *
