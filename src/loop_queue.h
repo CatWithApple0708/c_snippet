@@ -95,28 +95,28 @@ bool __loop_queue_is_full(__loop_queue_t *queue);
  */
 size_t __loop_queue_get_size(__loop_queue_t *queue);
 
-#define LOOP_QUEUE_ENABLE_SUPPORT(type)                                       \
-  typedef struct { __loop_queue_t handler; } loop_queue_##type;                 \
-  static inline void loop_queue_init_##type(loop_queue_##type *queue,         \
+#define LOOP_QUEUE_ENABLE_SUPPORT(name, type)                                 \
+  typedef struct { __loop_queue_t handler; } loop_queue_##name;               \
+  static inline void loop_queue_init_##name(loop_queue_##name *queue,         \
                                             type *data, size_t size) {        \
     __loop_queue_init_xxxx(&queue->handler, sizeof(type), (uint8_t *)data,    \
                            size * sizeof(type));                              \
   }                                                                           \
-  static inline bool loop_queue_pop_one_##type(loop_queue_##type *queue,      \
+  static inline bool loop_queue_pop_one_##name(loop_queue_##name *queue,      \
                                                type *data) {                  \
     return __loop_queue_pop_one_xxxx(&queue->handler, data);                  \
   }                                                                           \
-  static inline bool loop_queue_push_one_##type(loop_queue_##type *queue,     \
+  static inline bool loop_queue_push_one_##name(loop_queue_##name *queue,     \
                                                 type data) {                  \
     return __loop_queue_push_one_xxxx(&queue->handler, &data);                \
   }                                                                           \
-  static inline bool loop_queue_is_empty_##type(loop_queue_##type *queue) {   \
+  static inline bool loop_queue_is_empty_##name(loop_queue_##name *queue) {   \
     return __loop_queue_is_empty(&queue->handler);                            \
   }                                                                           \
-  static inline bool loop_queue_is_full_##type(loop_queue_##type *queue) {    \
+  static inline bool loop_queue_is_full_##name(loop_queue_##name *queue) {    \
     return __loop_queue_is_full(&queue->handler);                             \
   }                                                                           \
-  static inline size_t loop_queue_get_size_##type(loop_queue_##type *queue) { \
+  static inline size_t loop_queue_get_size_##name(loop_queue_##name *queue) { \
     return __loop_queue_get_size(&queue->handler);                            \
   }
 
@@ -124,6 +124,9 @@ size_t __loop_queue_get_size(__loop_queue_t *queue);
  * @brief 哪里用到这个定义在哪个c文件中使用下面的宏使能对相应结构体的支持
  *
  */
-// LOOP_QUEUE_ENABLE_SUPPORT(uint8_t);
-// LOOP_QUEUE_ENABLE_SUPPORT(uint16_t);
-// LOOP_QUEUE_ENABLE_SUPPORT(uint32_t);
+LOOP_QUEUE_ENABLE_SUPPORT(u8,uint8_t);
+LOOP_QUEUE_ENABLE_SUPPORT(u16, uint16_t);
+LOOP_QUEUE_ENABLE_SUPPORT(u32, uint32_t);
+LOOP_QUEUE_ENABLE_SUPPORT(i8, int8_t);
+LOOP_QUEUE_ENABLE_SUPPORT(i16, int16_t);
+LOOP_QUEUE_ENABLE_SUPPORT(i32, int32_t);

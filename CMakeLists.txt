@@ -41,13 +41,15 @@ project(HappySwitchSoundBoxV2)
 include_directories(src)
 
 # ####  ####
-# set(ALL_SRC human_num_analys_algo.c loop_buffer.c loop_queue.c)
 # #  _____       _
 # # |_   _|__ __| |_
 # #   | |/ -_|_-<  _|
 # #   |_|\___/__/\__|
-# add_executable(test_human_num_analys_algo ./test/test_human_num_analys_algo.c
-#                                           ${ALL_SRC})
+add_executable(test_human_num_analys_algo
+               src/human_num_analys_algo.c
+               ./test/test_human_num_analys_algo.c
+               src/infinite_arrary.c
+               src/loop_queue.c)
 
 #### gtest_main ####
 add_executable(test_main
