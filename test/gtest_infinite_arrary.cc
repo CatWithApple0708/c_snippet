@@ -43,7 +43,8 @@ TEST(TestLoopBuffer, test_uint8_t) {
       infinite_arrary_push_uint8_t(&loopbuff, value);
 
       if (i < 20) {
-        EXPECT_EQ(infinite_arrary_get_useful_start_offset(&loopbuff), (int32_t)0);
+        EXPECT_EQ(infinite_arrary_get_useful_start_offset(&loopbuff),
+                  (int32_t)0);
         EXPECT_EQ(infinite_arrary_get_useful_end_offset(&loopbuff), (int32_t)i);
       } else {
         EXPECT_EQ(infinite_arrary_get_useful_start_offset(&loopbuff),
@@ -94,7 +95,8 @@ TEST(TestLoopBuffer, test_uint32_t) {
       infinite_arrary_push_uint32_t(&loopbuff, value);
 
       if (i < 20) {
-        EXPECT_EQ(infinite_arrary_get_useful_start_offset(&loopbuff), (int32_t)0);
+        EXPECT_EQ(infinite_arrary_get_useful_start_offset(&loopbuff),
+                  (int32_t)0);
         EXPECT_EQ(infinite_arrary_get_useful_end_offset(&loopbuff), (int32_t)i);
       } else {
         EXPECT_EQ(infinite_arrary_get_useful_start_offset(&loopbuff),
