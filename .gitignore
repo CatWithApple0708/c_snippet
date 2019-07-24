@@ -7,4 +7,3 @@ compile_commands.json
 .ccls-cache/
 .ccls-cache/*
 third
-gtest_dep
