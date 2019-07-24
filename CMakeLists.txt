@@ -11,7 +11,7 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 # PLATFORM can be pc 3329 警告配置
 set(
   COMMON_FLAGS
-  " ${COMMON_FLAGS} -Werror=return-type -Werror=parentheses -Wfatal-errors  -Wall  -Wno-deprecated-declarations -Wno-unused-variable "
+  " ${COMMON_FLAGS} -Werror=return-type -Werror=parentheses  -Wall  -Wno-deprecated-declarations -Wno-unused-variable "
   )
 # 栈信息配置
 set(

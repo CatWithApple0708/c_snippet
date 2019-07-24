@@ -13,26 +13,18 @@
 #define kOrigionDataProcessWindowsMoveSize (1)
 /*利用数量和，和能量均值，做相应计算时候的窗口的大小*/
 #define kPrepareIrSignalsProcessWindowSize (4)
-/*能量均值的最大值*/
-#define kMaxPowerAverage (100)
-/*数量统计的求和的最大值，应该等于原始数据移动窗口的大小*/
-#define kMaxNumSum (20)
-/*能量均值的最小值*/
-#define kMinPowerAverage (0)
-/*数量统计的求和的最小值*/
-#define kMinNumSum (0)
-
-/*判断信号是Start信号的能量阈值*/
-#define kHighPowerThreshold (75)
-/*判断信号是Start信号的数量和阈值*/
-#define kHighNumSumThreshold (15)
-/*判断信号是End信号的能量阈值*/
-#define kLowPowerThreshold (25)
-/*判断信号是End信号的数量和阈值*/
-#define kLowNumSumThreshold (5)
-
+//调用human_num_analys_process的周期
 #define kRecomendedProcessPeriod (16)
+//数量求和均值最大值
+#define kMaxNumSumAverage (100)
+//数量求和均值最小值
+#define kMinNumSumAverage (0)
+//数量求和均值，判断定Start阈值
+#define kHighNumSumAverageThreshold (75)
+//数量求和均值，判断End阈值
+#define kLowNumSumAverageThreshold (25)
 
+//缓存数据的buf大小
 #define kLoopQueueSize (50)
 #define kInfiniteArrarySize (100)
 
@@ -90,35 +82,29 @@ typedef void (*on_judge_result_t)(human_moving_direction_t direction, int num);
 typedef struct human_detecter_handler_s human_detecter_handler_t;
 
 struct human_detecter_handler_s {
-  // WARNING:此处存储能量，能量按照百分比存储即数值0-100,发送的红外全部收到100
   uint8_t a_origion_data_queue_buf[kLoopQueueSize];
   uint8_t b_origion_data_queue_buf[kLoopQueueSize];
+  uint8_t a_origion_data_buf[kInfiniteArrarySize];
+  uint8_t b_origion_data_buf[kInfiniteArrarySize];
+  uint8_t a_num_sum_average_buf[kInfiniteArrarySize];
+  uint8_t b_num_sum_average_buf[kInfiniteArrarySize];
 
-  uint8_t a_origion_data_buffer_buf[kInfiniteArrarySize];
-  uint8_t b_origion_data_buffer_buf[kInfiniteArrarySize];
-  uint8_t a_num_sum_buffer_buf[kInfiniteArrarySize];
-  uint8_t b_num_sum_buffer_buf[kInfiniteArrarySize];
-  uint8_t a_power_average_buffer_buf[kInfiniteArrarySize];
-  uint8_t b_power_average_buffer_buf[kInfiniteArrarySize];
-
+  // WARNING:此处存储的原始数据，数量按照百分比存储即数值0-100,发送的红外全部收到100
   loop_queue_u8 a_origion_data_queue;
   loop_queue_u8 b_origion_data_queue;
 
   // 原始数据buffer
-  infinite_arrary_u8 a_origion_data_buffer;
-  infinite_arrary_u8 b_origion_data_buffer;
+  infinite_arrary_u8 a_origion_data;
+  infinite_arrary_u8 b_origion_data;
 
   // 数量统计 buffer
-  infinite_arrary_u8 a_num_sum_buffer;
-  infinite_arrary_u8 b_num_sum_buffer;
-
-  // 能量统计 buffer
-  infinite_arrary_u8 a_power_average_buffer;
-  infinite_arrary_u8 b_power_average_buffer;
+  //@WARNING这里可能会导致数据丢失
+  infinite_arrary_u8 a_num_sum_average;
+  infinite_arrary_u8 b_num_sum_average;
 
   // AB开始结束
   ir_signal_t signals[kSignalArrarySzie];
-  uint8_t signals_size;
+  int16_t n_singls;
   /**
    * @brief 表示原始数据已经有多少已经被处理了
    */

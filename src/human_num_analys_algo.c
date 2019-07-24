@@ -3,7 +3,17 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include "macro.h"
+
+#ifndef BUILD_ASSERT
+#define BUILD_ASSERT(cond)               \
+  do {                                   \
+    (void)sizeof(char[1 - 2 * !(cond)]); \
+  } while (0)
+#endif
+
+#ifndef ARRARY_SIZE
+#define ARRARY_SIZE(arrary) sizeof(arrary) / sizeof(arrary[0])
+#endif
 
 static __attribute__((__unused__)) void build_check_func() {
   BUILD_ASSERT(kOrigionDataProcessWindowsSize <= 256);
@@ -12,11 +22,8 @@ static __attribute__((__unused__)) void build_check_func() {
   // AS,AE,BS,AS(第二个人),BE，如果数据被及时处理，则buffer中不会积累过多的数据
   //当出现类似AS,AE,BS,AS,AE,AS,AE, 将会移除一组AS,AE
   BUILD_ASSERT(kSignalArrarySzie >= 10);
-  BUILD_ASSERT(kMaxNumSum == kOrigionDataProcessWindowsSize);
-  BUILD_ASSERT(kHighPowerThreshold < kMaxPowerAverage);
-  BUILD_ASSERT(kHighNumSumThreshold < kMaxNumSum);
-  BUILD_ASSERT(kLowPowerThreshold < kMaxPowerAverage);
-  BUILD_ASSERT(kLowNumSumThreshold < kMaxNumSum);
+  BUILD_ASSERT(kHighNumSumAverageThreshold < kMaxNumSumAverage);
+  BUILD_ASSERT(kHighNumSumAverageThreshold > kMinNumSumAverage);
 }
 /*
    ___ _        _   _
@@ -61,17 +68,37 @@ static bool is_increase_order(uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
 
 void static push_origion_data_to_buffer(human_detecter_handler_t *handlers,
                                         ir_receive_signal_time_domain_e domain,
-                                        uint8_t data) {}
-void static push_num_sum_data_to_buffer(human_detecter_handler_t *handlers,
-                                        ir_receive_signal_time_domain_e domain,
-                                        uint8_t data) {}
-void static push_power_average_data_to_buffer(
-    human_detecter_handler_t *handlers, ir_receive_signal_time_domain_e domain,
-    uint8_t data) {}
+                                        uint8_t data) {
+  if (domain == kADomain) {
+    infinite_arrary_push_u8(&handlers->a_origion_data, data);
+  } else {
+    infinite_arrary_push_u8(&handlers->b_origion_data, data);
+  }
+}
+void static push_num_sum_average_to_buffer(human_detecter_handler_t *handlers,
+                                       ir_receive_signal_time_domain_e domain,
+                                       uint8_t data) {
+  if (domain == kADomain) {
+    infinite_arrary_push_u8(&handlers->a_num_sum_average, data);
+  } else {
+    infinite_arrary_push_u8(&handlers->b_num_sum_average, data);
+  }
+}
 void static push_ir_signal_to_signals(human_detecter_handler_t *handlers,
-                                      ir_signal_t signal) {}
+                                      ir_signal_t signal) {
+  if (handlers->n_singls == ARRARY_SIZE(handlers->signals)) {
+    return;
+  }
+  handlers->signals[handlers->n_singls] = signal;
+  handlers->n_singls++;
+}
 void static clear_ir_signal_to_signals(human_detecter_handler_t *handlers,
-                                       uint8_t offset) {}
+                                       uint8_t offset) {
+  if (handlers->n_singls <= offset) return;
+  /**TODO:效率低下部分**/
+  memmove(&handlers->signals[offset], &handlers->signals[offset + 1],
+          handlers->n_singls - 1 - offset * sizeof(handlers->signals[0]));
+}
 /*
       _        _
    __| |___ __| |__ _ _ _ ___
@@ -156,8 +183,8 @@ static void read_origion_data_from_queue_to_buffer(
 static bool prepare_num_sum_and_power_average(
     human_detecter_handler_t *handlers, uint32_t offset) {
   //如果数据还没有达到窗口的大小，则返回等待数据准备ok
-  infinite_arrary_u8 *aod_buffer = &handlers->a_origion_data_buffer;
-  infinite_arrary_u8 *bod_buffer = &handlers->b_origion_data_buffer;
+  infinite_arrary_u8 *aod_buffer = &handlers->a_origion_data;
+  infinite_arrary_u8 *bod_buffer = &handlers->b_origion_data;
 
   if (offset + kOrigionDataProcessWindowsSize <
       infinite_arrary_get_useful_end_offset_u8(aod_buffer)) {
@@ -173,38 +200,26 @@ static bool prepare_num_sum_and_power_average(
 
   //对于num的求和使用的uint8_t 进行存储，当kWindowsSize大于256时候，会溢出.
 
-  uint8_t a_num_sum = 0;
-  for (unsigned i = offset; i < kOrigionDataProcessWindowsSize; ++i) {
-    a_num_sum = +(infinite_arrary_get_u8(aod_buffer, i) == 0) ? 0 : 1;
-  }
-
-  uint8_t b_num_sum = 0;
-  for (unsigned i = offset; i < kOrigionDataProcessWindowsSize; ++i) {
-    b_num_sum = +(infinite_arrary_get_u8(bod_buffer, i) == 0) ? 0 : 1;
-  }
-
-  uint8_t a_power_average = 0;
+  uint8_t a_num_sum_average = 0;
   {
     uint32_t sum_power = 0;
     for (unsigned i = offset; i < kOrigionDataProcessWindowsSize; ++i) {
       sum_power = +infinite_arrary_get_u8(aod_buffer, i);
     }
-    a_power_average = sum_power / kOrigionDataProcessWindowsSize;
+    a_num_sum_average = sum_power / kOrigionDataProcessWindowsSize;
   }
 
-  uint8_t b_power_average = 0;
+  uint8_t b_num_sum_average = 0;
   {
     uint32_t sum_power = 0;
     for (unsigned i = offset; i < kOrigionDataProcessWindowsSize; ++i) {
       sum_power = +infinite_arrary_get_u8(bod_buffer, i);
     }
-    b_power_average = sum_power / kOrigionDataProcessWindowsSize;
+    b_num_sum_average = sum_power / kOrigionDataProcessWindowsSize;
   }
 
-  push_num_sum_data_to_buffer(handlers, kADomain, a_num_sum);
-  push_num_sum_data_to_buffer(handlers, kBDomain, b_num_sum);
-  push_power_average_data_to_buffer(handlers, kADomain, a_power_average);
-  push_power_average_data_to_buffer(handlers, kBDomain, b_power_average);
+  push_num_sum_average_to_buffer(handlers, kADomain, a_num_sum_average);
+  push_num_sum_average_to_buffer(handlers, kBDomain, b_num_sum_average);
 
   //   *odp_offset+=kOrigionDataProcessWindowsMoveSize;
   return true;
@@ -215,53 +230,39 @@ static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
                                         uint32_t cur_offset,
                                         uint32_t max_offset,
                                         bool *signals_update) {
-  infinite_arrary_u8 *num_sum_buf;
-  infinite_arrary_u8 *power_average_buf;
+  infinite_arrary_u8 *num_average_buf;
   ir_receiver_state_e *ir_receive_state;
 
   if (domain == kADomain) {
-    num_sum_buf = &handlers->a_num_sum_buffer;
-    power_average_buf = &handlers->a_power_average_buffer;
+    num_average_buf = &handlers->a_num_sum_average;
     ir_receive_state = &handlers->a_ir_receive_state;
   } else {
-    num_sum_buf = &handlers->b_num_sum_buffer;
-    power_average_buf = &handlers->b_power_average_buffer;
+    num_average_buf = &handlers->b_num_sum_average;
     ir_receive_state = &handlers->b_ir_receive_state;
   }
 
-  // const static uint8_t kHighPowerThreshold = 75;
-  // const static uint8_t kHighNumSumThreshold = 15;
-  // const static uint8_t kLowPowerThreshold = 25;
-  // const static uint8_t kLowNumSumThreshold = 5;
-
   // toStartState
   if (*ir_receive_state == kOnReceiveingNothingState) {
-    uint8_t curPowerAverageValue =
-        infinite_arrary_get_u8(power_average_buf, cur_offset);
-    uint8_t cur_num_sum = infinite_arrary_get_u8(num_sum_buf, cur_offset);
-
+    uint8_t curNumAverageValue =
+        infinite_arrary_get_u8(num_average_buf, cur_offset);
     //   判断是否是上升趋势
     bool is_up_tend = true;
     for (unsigned i = cur_offset + 1; i < max_offset; ++i) {
-      if (infinite_arrary_get_u8(num_sum_buf, i) <
-          infinite_arrary_get_u8(num_sum_buf, i - 1)) {
+      if (infinite_arrary_get_u8(num_average_buf, i) <
+          infinite_arrary_get_u8(num_average_buf, i - 1)) {
         is_up_tend = false;
         break;
       }
     }
     bool useful = false;
-
-    if (curPowerAverageValue >= kHighPowerThreshold &&
-        cur_num_sum >= kHighNumSumThreshold && is_up_tend) {
+    if (curNumAverageValue >= kHighNumSumAverageThreshold && is_up_tend) {
       useful = true;
-    } else if (curPowerAverageValue == kMaxPowerAverage &&
-               cur_num_sum == kMaxNumSum) {
+    } else if (curNumAverageValue == kMaxNumSumAverage) {
       useful = true;
     }
 
     if (useful) {
-      if (curPowerAverageValue >= kHighPowerThreshold &&
-          cur_num_sum >= kHighNumSumThreshold && is_up_tend) {
+      if (curNumAverageValue >= kHighNumSumAverageThreshold && is_up_tend) {
         ir_signal_t signal =
             build_ir_signal(domain, true /*isStartSignal*/, cur_offset);
         push_ir_signal_to_signals(handlers, signal);
@@ -270,25 +271,22 @@ static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
     }
 
   } else if (*ir_receive_state == kOnReceiveingIrDataState) {
-    uint8_t curPowerAverageValue =
-        infinite_arrary_get_u8(power_average_buf, cur_offset);
-    uint8_t cur_num_sum = infinite_arrary_get_u8(num_sum_buf, cur_offset);
+    uint8_t curNumAverageValue =
+        infinite_arrary_get_u8(num_average_buf, cur_offset);
 
     bool is_down_tend = true;
     for (unsigned i = cur_offset + 1; i < max_offset; ++i) {
-      if (infinite_arrary_get_u8(num_sum_buf, i) >
-          infinite_arrary_get_u8(num_sum_buf, i - 1)) {
+      if (infinite_arrary_get_u8(num_average_buf, i) >
+          infinite_arrary_get_u8(num_average_buf, i - 1)) {
         is_down_tend = false;
         break;
       }
     }
 
     bool useful = false;
-    if (curPowerAverageValue <= kLowPowerThreshold &&
-        cur_num_sum <= kLowNumSumThreshold && is_down_tend) {
+    if (curNumAverageValue <= kLowNumSumAverageThreshold && is_down_tend) {
       useful = true;
-    } else if (curPowerAverageValue == kMinPowerAverage &&
-               cur_num_sum == kMinNumSum) {
+    } else if (curNumAverageValue == kMinNumSumAverage) {
       useful = true;
     }
 
@@ -296,31 +294,38 @@ static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
     if (useful) {
       ir_signal_t signal =
           build_ir_signal(domain, false /*isStartSignal*/, cur_offset);
-      push_ir_signal_to_signals(handlers,signal);
+      push_ir_signal_to_signals(handlers, signal);
       *signals_update = true;
     }
   }
 };
-
+/**
+ * @brief 准备　AS AE BS BE信号
+ *
+ * @param handlers
+ * @param offset
+ * @param signals_update
+ * @return true
+ * @return false
+ */
 static bool prepare_ir_signals(human_detecter_handler_t *handlers,
                                uint32_t offset, bool *signals_update) {
-  infinite_arrary_u8 *apa_buffer = &handlers->a_power_average_buffer;
-
-  infinite_arrary_u8 *bpa_buffer = &handlers->b_power_average_buffer;
-  //计算A
-
-  if (infinite_arrary_get_useful_end_offset_u8(apa_buffer) <
+  //检查计算所需要的数据是否充足，不充足则返回
+  if (infinite_arrary_get_useful_end_offset_u8(
+          &handlers->a_num_sum_average) <
       offset + kPrepareIrSignalsProcessWindowSize) {
     return false;
   }
-  if (infinite_arrary_get_useful_end_offset_u8(bpa_buffer) <
+  if (infinite_arrary_get_useful_end_offset_u8(
+          &handlers->b_num_sum_average) <
       offset + kPrepareIrSignalsProcessWindowSize) {
     return false;
   }
-
+  //准备AS,或者AE
   prepare_ir_signals_internal(handlers, kADomain, offset,
                               offset + kPrepareIrSignalsProcessWindowSize,
                               signals_update);
+  //准备BS,或者BE
   prepare_ir_signals_internal(handlers, kBDomain, offset,
                               offset + kPrepareIrSignalsProcessWindowSize,
                               signals_update);
@@ -340,25 +345,25 @@ static bool prepare_ir_signals(human_detecter_handler_t *handlers,
 static void judge_human_num_and_moving_direction(
     human_detecter_handler_t *handlers) {
   ir_signal_t *signals = handlers->signals;
-  if (handlers->signals_size < 4) {
+  if (handlers->n_singls < 4) {
     return;
   }
   //初步过滤掉多余的信号
   // AS,AE,AS,AE , 删除掉 后面的AS,AE
   // BS,BE,BS,BE , 删除掉 后面的BS,BE
-  for (unsigned i = 0; i + 4 < handlers->signals_size; ++i) {
+  for (unsigned i = 0; i + 4 < handlers->n_singls; ++i) {
     if (signals[i].type == kAStartType && signals[i + 1].type == kAStopType &&
         signals[i + 2].type == kAStartType &&
         signals[i + 3].type == kAStopType) {
       /* code */
-      clear_ir_signal_to_signals(handlers,i);
-      clear_ir_signal_to_signals(handlers,i + 1);
+      clear_ir_signal_to_signals(handlers, i);
+      clear_ir_signal_to_signals(handlers, i + 1);
     } else if (signals[i].type == kAStartType &&
                signals[i + 1].type == kAStopType &&
                signals[i + 2].type == kAStartType &&
                signals[i + 3].type == kAStopType) {
-      clear_ir_signal_to_signals(handlers,i);
-      clear_ir_signal_to_signals(handlers,i + 1);
+      clear_ir_signal_to_signals(handlers, i);
+      clear_ir_signal_to_signals(handlers, i + 1);
     }
   }
 
@@ -366,7 +371,7 @@ static void judge_human_num_and_moving_direction(
   bool as_is_ready = false, ae_is_ready = false, bs_is_ready = false,
        be_is_ready = false;
   uint8_t as_of = 0, ae_of = 0, bs_of = 0, be_of = 0;
-  for (unsigned i = 0; i < handlers->signals_size; ++i) {
+  for (unsigned i = 0; i < handlers->n_singls; ++i) {
     if (signals[i].type == kAStartType) {
       as_is_ready = true;
       as_of = i;
@@ -407,13 +412,13 @@ static void judge_human_num_and_moving_direction(
     }
 
     //清理处理过的信号
-    clear_ir_signal_to_signals(handlers,as_of);
-    clear_ir_signal_to_signals(handlers,ae_of);
-    clear_ir_signal_to_signals(handlers,bs_of);
-    clear_ir_signal_to_signals(handlers,be_of);
+    clear_ir_signal_to_signals(handlers, as_of);
+    clear_ir_signal_to_signals(handlers, ae_of);
+    clear_ir_signal_to_signals(handlers, bs_of);
+    clear_ir_signal_to_signals(handlers, be_of);
   }
 
-  if (handlers->signals_size == ARRARY_SIZE(handlers->signals)) {
+  if (handlers->n_singls == ARRARY_SIZE(handlers->signals)) {
     // TODO:这里打印条警告，代码不应该运行到这里
   }
 }
@@ -436,13 +441,13 @@ void human_num_analys_process(human_detecter_handler_t *handlers) {
   // 2. 能量求和求平均
   while (true) {
     uint32_t *odp_offset = &handlers->orgion_data_process_offset;
-    if (prepare_num_sum_and_power_average(handlers ,* odp_offset) == false) {
+    if (prepare_num_sum_and_power_average(handlers, *odp_offset) == false) {
       break;
     }
 
     uint32_t *pre_irs_offset = &handlers->prepare_ir_signals_process_offset;
     bool ir_signal_update = false;
-    if (prepare_ir_signals(handlers ,* pre_irs_offset, &ir_signal_update) ==
+    if (prepare_ir_signals(handlers, *pre_irs_offset, &ir_signal_update) ==
         false) {
       *odp_offset = *odp_offset + kOrigionDataProcessWindowsMoveSize;
       continue;
@@ -459,10 +464,34 @@ void human_num_analys_process(human_detecter_handler_t *handlers) {
 
 /**
  * @brief 模块初始化
- *
  */
 void human_num_analys_init(human_detecter_handler_t *handlers) {
-  
+  //   a_origion_data_queue
+  // b_origion_data_queue
+  memset(handlers, 0, sizeof(human_detecter_handler_t));
+  loop_queue_init_u8(&handlers->a_origion_data_queue,
+                     handlers->a_origion_data_queue_buf,
+                     ARRARY_SIZE(handlers->a_origion_data_queue_buf));
+  loop_queue_init_u8(&handlers->b_origion_data_queue,
+                     handlers->b_origion_data_queue_buf,
+                     ARRARY_SIZE(handlers->b_origion_data_queue_buf));
+
+  infinite_arrary_init_u8(&handlers->a_origion_data,
+                          handlers->a_origion_data_buf,
+                          ARRARY_SIZE(handlers->a_origion_data_buf));
+  infinite_arrary_init_u8(&handlers->b_origion_data,
+                          handlers->b_origion_data_buf,
+                          ARRARY_SIZE(handlers->b_origion_data_buf));
+
+  infinite_arrary_init_u8(&handlers->a_num_sum_average,
+                          handlers->a_num_sum_average_buf,
+                          ARRARY_SIZE(handlers->a_num_sum_average_buf));
+  infinite_arrary_init_u8(&handlers->b_num_sum_average,
+                          handlers->b_num_sum_average_buf,
+                          ARRARY_SIZE(handlers->b_num_sum_average_buf));
+
+  handlers->a_ir_receive_state = kOnReceiveingNothingState;
+  handlers->b_ir_receive_state = kOnReceiveingNothingState;
 }
 
 /**
@@ -473,7 +502,13 @@ void human_num_analys_init(human_detecter_handler_t *handlers) {
  */
 void human_num_analys_push_origion_data(human_detecter_handler_t *handlers,
                                         ir_receive_signal_time_domain_e doamin,
-                                        uint8_t origion_data) {}
+                                        uint8_t origion_data) {
+  if (doamin == kADomain) {
+    loop_queue_push_one_u8(&handlers->a_origion_data_queue, origion_data);
+  } else {
+    loop_queue_push_one_u8(&handlers->b_origion_data_queue, origion_data);
+  }
+}
 /**
  * @brief 人数检测分析程序，应当运行在某个定时器中，每当数据更新的时候，运行一次
  */
@@ -491,4 +526,6 @@ int human_num_analys_get_recommend_process_period(
  * @brief 每当重新开启一次新的计算的时候，用来复位状态
  *
  */
-void human_num_analys_reset(human_detecter_handler_t *handlers) {}
+void human_num_analys_reset(human_detecter_handler_t *handlers) {
+  human_num_analys_init(handlers);
+}
