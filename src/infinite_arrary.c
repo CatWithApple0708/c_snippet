@@ -2,13 +2,13 @@
 #include <string.h>
 
 
-static size_t get_next_offset2(infinite_arrary_t *queue, uint32_t cur_off) {
+static size_t get_next_offset2(__infinite_arrary_t *queue, uint32_t cur_off) {
   if (cur_off + queue->each_element_size * 2 <= queue->capacity)
     return cur_off + queue->each_element_size;
   return 0;
 }
 
-void __infinite_arrary_init_xxxx(infinite_arrary_t *buffer, uint8_t *buf,
+void __infinite_arrary_init_xxxx(__infinite_arrary_t *buffer, uint8_t *buf,
                              size_t capacity, size_t each_element_size) {
   buffer->buf = buf;
   buffer->capacity = capacity - capacity % each_element_size;
@@ -18,7 +18,7 @@ void __infinite_arrary_init_xxxx(infinite_arrary_t *buffer, uint8_t *buf,
   buffer->write_offset = 0;
   return;
 }
-void __infinite_arrary_push_xxxx(infinite_arrary_t *buffer, const void *data) {
+void __infinite_arrary_push_xxxx(__infinite_arrary_t *buffer, const void *data) {
   memcpy(buffer->buf + buffer->write_offset, data, buffer->each_element_size);
   buffer->write_offset = get_next_offset2(buffer, buffer->write_offset);
   buffer->useful_end_offset += 1;
@@ -30,7 +30,7 @@ void __infinite_arrary_push_xxxx(infinite_arrary_t *buffer, const void *data) {
     buffer->useful_start_offset += 1;
   }
 }
-bool __infinite_arrary_get_xxxx(infinite_arrary_t *buffer, int32_t offset, void *data) {
+bool __infinite_arrary_get_xxxx(__infinite_arrary_t *buffer, int32_t offset, void *data) {
   if (offset < buffer->useful_start_offset) {
     return false;
   }
@@ -46,9 +46,9 @@ bool __infinite_arrary_get_xxxx(infinite_arrary_t *buffer, int32_t offset, void 
   memcpy(data, buffer->buf + real_off, buffer->each_element_size);
   return true;
 }
-int32_t infinite_arrary_get_useful_start_offset(infinite_arrary_t *buffer) {
+int32_t __infinite_arrary_get_useful_start_offset(__infinite_arrary_t *buffer) {
   return buffer->useful_start_offset;
 }
-int32_t infinite_arrary_get_useful_end_offset(infinite_arrary_t *buffer) {
+int32_t __infinite_arrary_get_useful_end_offset(__infinite_arrary_t *buffer) {
   return buffer->useful_end_offset;
 }

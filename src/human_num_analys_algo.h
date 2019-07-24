@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "loop_buffer.h"
+#include "infinite_arrary.h"
 #include "loop_queue.h"
 /*IrSignals数组的Size---存放 AStart,AEnd,BStart,Bend的数组*/
 #define kSignalArrarySzie (10)
@@ -92,16 +92,16 @@ struct human_detecter_handler_s {
   loop_queue_t b_origion_data_queue;
 
   // 原始数据buffer
-  loop_buffer_t a_origion_data_buffer;
-  loop_buffer_t b_origion_data_buffer;
+  infinite_arrary_t a_origion_data_buffer;
+  infinite_arrary_t b_origion_data_buffer;
 
   // 数量统计 buffer
-  loop_buffer_t a_num_sum_buffer;
-  loop_buffer_t b_num_sum_buffer;
+  infinite_arrary_t a_num_sum_buffer;
+  infinite_arrary_t b_num_sum_buffer;
 
   // 能量统计 buffer
-  loop_buffer_t a_power_average_buffer;
-  loop_buffer_t b_power_average_buffer;
+  infinite_arrary_t a_power_average_buffer;
+  infinite_arrary_t b_power_average_buffer;
 
   // AB开始结束
   ir_signal_t signals[kSignalArrarySzie];

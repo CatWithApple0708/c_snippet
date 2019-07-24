@@ -13,35 +13,35 @@ LOOP_QUEUE_ENABLE_SUPPORT(uint32_t);
 
 TEST(TestLoopQueue, test_uint8_t) {
   {
-    loop_queue_t loop_queue;
+    loop_queue_uint8_t loop_queue;
     uint8_t buf[16] = {0};
 
     loop_queue_init_uint8_t(&loop_queue, buf, ARRARY_SIZE(buf));
-    ASSERT_TRUE(loop_queue_is_empty(&loop_queue));
-    ASSERT_TRUE(!loop_queue_is_full(&loop_queue));
-    ASSERT_TRUE(loop_queue_get_size(&loop_queue) == 0);
+    ASSERT_TRUE(loop_queue_is_empty_uint8_t(&loop_queue));
+    ASSERT_TRUE(!loop_queue_is_full_uint8_t(&loop_queue));
+    ASSERT_TRUE(loop_queue_get_size_uint8_t(&loop_queue) == 0);
 
     ASSERT_TRUE(loop_queue_push_one_uint8_t(&loop_queue, 1));
-    ASSERT_TRUE(!loop_queue_is_empty(&loop_queue));
-    ASSERT_TRUE(loop_queue_get_size(&loop_queue) == 1);
+    ASSERT_TRUE(!loop_queue_is_empty_uint8_t(&loop_queue));
+    ASSERT_TRUE(loop_queue_get_size_uint8_t(&loop_queue) == 1);
     uint8_t value = 0;
     ASSERT_TRUE(loop_queue_pop_one_uint8_t(&loop_queue, &value));
     ASSERT_TRUE(value == 1);
-    ASSERT_TRUE(loop_queue_is_empty(&loop_queue));
-    ASSERT_TRUE(loop_queue_get_size(&loop_queue) == 0);
+    ASSERT_TRUE(loop_queue_is_empty_uint8_t(&loop_queue));
+    ASSERT_TRUE(loop_queue_get_size_uint8_t(&loop_queue) == 0);
   }
 
   {
-    loop_queue_t loop_queue;
+    loop_queue_uint8_t loop_queue;
     uint8_t buf[16] = {0};
 
     loop_queue_init_uint8_t(&loop_queue, buf, ARRARY_SIZE(buf));
-    
-    for(unsigned j = 0; j < 2; ++j) {
+
+    for (unsigned j = 0; j < 2; ++j) {
       for (unsigned i = 0; i < 15; ++i) {
         ASSERT_TRUE(loop_queue_push_one_uint8_t(&loop_queue, i));
       }
-      ASSERT_TRUE(loop_queue_is_full(&loop_queue));
+      ASSERT_TRUE(loop_queue_is_full_uint8_t(&loop_queue));
       ASSERT_TRUE(!loop_queue_push_one_uint8_t(&loop_queue, 20));
       ASSERT_TRUE(!loop_queue_push_one_uint8_t(&loop_queue, 20));
       ASSERT_TRUE(!loop_queue_push_one_uint8_t(&loop_queue, 20));
@@ -51,33 +51,33 @@ TEST(TestLoopQueue, test_uint8_t) {
         ASSERT_TRUE(loop_queue_pop_one_uint8_t(&loop_queue, &value));
         ASSERT_TRUE(value == i);
       }
-      ASSERT_TRUE(loop_queue_is_empty(&loop_queue));
+      ASSERT_TRUE(loop_queue_is_empty_uint8_t(&loop_queue));
     }
   }
 }
 
 TEST(TestLoopQueue, test_uint32_t) {
   {
-    loop_queue_t loop_queue;
+    loop_queue_uint32_t loop_queue;
     uint32_t buf[16] = {0};
 
     loop_queue_init_uint32_t(&loop_queue, buf, ARRARY_SIZE(buf));
-    ASSERT_TRUE(loop_queue_is_empty(&loop_queue));
-    ASSERT_TRUE(!loop_queue_is_full(&loop_queue));
-    ASSERT_TRUE(loop_queue_get_size(&loop_queue) == 0);
+    ASSERT_TRUE(loop_queue_is_empty_uint32_t(&loop_queue));
+    ASSERT_TRUE(!loop_queue_is_full_uint32_t(&loop_queue));
+    ASSERT_TRUE(loop_queue_get_size_uint32_t(&loop_queue) == 0);
 
     ASSERT_TRUE(loop_queue_push_one_uint32_t(&loop_queue, 1));
-    ASSERT_TRUE(!loop_queue_is_empty(&loop_queue));
-    ASSERT_TRUE(loop_queue_get_size(&loop_queue) == 1);
+    ASSERT_TRUE(!loop_queue_is_empty_uint32_t(&loop_queue));
+    ASSERT_TRUE(loop_queue_get_size_uint32_t(&loop_queue) == 1);
     uint32_t value = 0;
     ASSERT_TRUE(loop_queue_pop_one_uint32_t(&loop_queue, &value));
     ASSERT_TRUE(value == 1);
-    ASSERT_TRUE(loop_queue_is_empty(&loop_queue));
-    ASSERT_TRUE(loop_queue_get_size(&loop_queue) == 0);
+    ASSERT_TRUE(loop_queue_is_empty_uint32_t(&loop_queue));
+    ASSERT_TRUE(loop_queue_get_size_uint32_t(&loop_queue) == 0);
   }
 
   {
-    loop_queue_t loop_queue;
+    loop_queue_uint32_t loop_queue;
     uint32_t buf[16] = {0};
 
     loop_queue_init_uint32_t(&loop_queue, buf, ARRARY_SIZE(buf));
@@ -86,7 +86,7 @@ TEST(TestLoopQueue, test_uint32_t) {
       for (unsigned i = 0; i < 15; ++i) {
         ASSERT_TRUE(loop_queue_push_one_uint32_t(&loop_queue, i));
       }
-      ASSERT_TRUE(loop_queue_is_full(&loop_queue));
+      ASSERT_TRUE(loop_queue_is_full_uint32_t(&loop_queue));
       ASSERT_TRUE(!loop_queue_push_one_uint32_t(&loop_queue, 20));
       ASSERT_TRUE(!loop_queue_push_one_uint32_t(&loop_queue, 20));
       ASSERT_TRUE(!loop_queue_push_one_uint32_t(&loop_queue, 20));
@@ -96,7 +96,7 @@ TEST(TestLoopQueue, test_uint32_t) {
         ASSERT_TRUE(loop_queue_pop_one_uint32_t(&loop_queue, &value));
         ASSERT_TRUE(value == i);
       }
-      ASSERT_TRUE(loop_queue_is_empty(&loop_queue));
+      ASSERT_TRUE(loop_queue_is_empty_uint32_t(&loop_queue));
     }
   }
 }

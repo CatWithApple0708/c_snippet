@@ -147,8 +147,8 @@ static void read_origion_data_from_queue_to_buffer() {
  */
 static bool prepare_num_sum_and_power_average(uint32_t offset) {
   //如果数据还没有达到窗口的大小，则返回等待数据准备ok
-  loop_buffer_t *aod_buffer = &s_phuman_detecter_handler->a_origion_data_buffer;
-  loop_buffer_t *bod_buffer = &s_phuman_detecter_handler->b_origion_data_buffer;
+  infinite_arrary_t *aod_buffer = &s_phuman_detecter_handler->a_origion_data_buffer;
+  infinite_arrary_t *bod_buffer = &s_phuman_detecter_handler->b_origion_data_buffer;
 
   if (offset + kOrigionDataProcessWindowsSize <
       loop_buffer_get_useful_end_offset(aod_buffer)) {
@@ -205,8 +205,8 @@ static void prepare_ir_signals_internal(ir_receive_signal_time_domain_e domain,
                                         uint32_t cur_offset,
                                         uint32_t max_offset,
                                         bool *signals_update) {
-  loop_buffer_t *num_sum_buf;
-  loop_buffer_t *power_average_buf;
+  infinite_arrary_t *num_sum_buf;
+  infinite_arrary_t *power_average_buf;
   ir_receiver_state_e *ir_receive_state;
 
   if (domain == kADomain) {
@@ -293,10 +293,10 @@ static void prepare_ir_signals_internal(ir_receive_signal_time_domain_e domain,
 };
 
 static bool prepare_ir_signals(uint32_t offset, bool *signals_update) {
-  loop_buffer_t *apa_buffer =
+  infinite_arrary_t *apa_buffer =
       &s_phuman_detecter_handler->a_power_average_buffer;
 
-  loop_buffer_t *bpa_buffer =
+  infinite_arrary_t *bpa_buffer =
       &s_phuman_detecter_handler->b_power_average_buffer;
   //计算A
 
