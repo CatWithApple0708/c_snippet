@@ -422,22 +422,20 @@ static void judge_human_num_and_moving_direction(
   if (handlers->n_singls < 4) {
     return;
   }
-  //初步过滤掉多余的信号
-  // AS,AE,AS,AE , 删除掉 后面的AS,AE
-  // BS,BE,BS,BE , 删除掉 后面的BS,BE
+  //初步过滤掉多余的信号,TODO:这里的过滤鲁棒性有待改善
+  // AS,AE,AS xxxx, 删除掉 后面的AS,AE
+  // BS,BE,BS xxxx, 删除掉 后面的BS,BE
   for (unsigned i = 0; i + 4 < handlers->n_singls; ++i) {
     if (signals[i].type == kAStartType && signals[i + 1].type == kAStopType &&
-        signals[i + 2].type == kAStartType &&
-        signals[i + 3].type == kAStopType) {
+        signals[i + 2].type == kAStartType) {
       /* code */
-      ir_signals_set_remove_flag(handlers,&signals[i]);
-      ir_signals_set_remove_flag(handlers,&signals[i+1]);
-    } else if (signals[i].type == kAStartType &&
-               signals[i + 1].type == kAStopType &&
-               signals[i + 2].type == kAStartType &&
-               signals[i + 3].type == kAStopType) {
-      ir_signals_set_remove_flag(handlers,&signals[i]);
-      ir_signals_set_remove_flag(handlers,&signals[i + 1]);
+      ir_signals_set_remove_flag(handlers, &signals[i]);
+      ir_signals_set_remove_flag(handlers, &signals[i + 1]);
+    } else if (signals[i].type == kBStartType &&
+               signals[i + 1].type == kBStopType &&
+               signals[i + 2].type == kBStartType) {
+      ir_signals_set_remove_flag(handlers, &signals[i]);
+      ir_signals_set_remove_flag(handlers, &signals[i + 1]);
     }
   }
   clear_ir_signal_to_signals(handlers);

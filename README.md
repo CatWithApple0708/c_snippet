@@ -20,10 +20,11 @@ AS,AE, BS,BE  AS,BS,AE,BE .....波形千千万
 
 一个人只触发A区，
 AS,AE AS,AE
-1
 
 均可通过简单的波形匹配进行区分
 
-
-
-
+####特殊情况
+1. 人进入到一半再出来
+2. 人进入到一半再出来，然后没有出去彻底又进去
+3. 人进去出来，只触发A区，然后再进去 (AS,AE,----,AS,BS,AE,BE onePeople) (1AS,1AE, 2AS,2BS,2AE,3AS,2BE,3BS,3AE,3BE)
+4. 人进去出来，只触发A区，然后另外一个人从里面出来 (AS,AE,----,BS,AS,BE,AE onePeople)
