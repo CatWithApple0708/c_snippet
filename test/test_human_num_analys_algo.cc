@@ -68,10 +68,10 @@ void confingLogger() {
   s_console = spdlog::stdout_color_mt("console");
   auto sink = s_console->sinks()[0];
   s_judgeResultLogger =
-      basic_logger_mt("judgeResultLogger", "judgeResultLogger.log");
+      basic_logger_mt("judgeResultLogger", "judgeResultLogger.log",true);
   s_numSumAverageLogger =
-      basic_logger_mt("numSumAverageLogger", "numSumAverageLogger.log");
-  s_signalLogger = basic_logger_mt("signalLogger", "signalLogger.log");
+      basic_logger_mt("numSumAverageLogger", "numSumAverageLogger.log", true);
+  s_signalLogger = basic_logger_mt("signalLogger", "signalLogger.log", true);
 
   s_judgeResultLogger->sinks().push_back(sink);
   s_numSumAverageLogger->sinks().push_back(sink);
