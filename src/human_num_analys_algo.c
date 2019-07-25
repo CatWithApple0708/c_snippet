@@ -53,9 +53,7 @@ static ir_signal_t build_ir_signal(ir_receive_signal_time_domain_e domain,
   } else {
     type = isStartSignal ? kBStartType : kBStopType;
   }
-  ir_signal_t result = {
-      .type = type, .offset = offset,
-  };
+  ir_signal_t result = {.type = type, .offset = offset, .remove_flag = false};
   return result;
 }
 static bool is_increase_order(uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
@@ -64,7 +62,13 @@ static bool is_increase_order(uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
   }
   return false;
 }
-
+/**
+ * @brief push一个原始数据到buffer中
+ * 
+ * @param handlers 
+ * @param domain 
+ * @param data 
+ */
 void static push_origion_data_to_buffer(human_detecter_handler_t *handlers,
                                         ir_receive_signal_time_domain_e domain,
                                         uint8_t data) {
@@ -82,22 +86,62 @@ void static push_num_sum_average_to_buffer(
   if (handlers->on_new_num_sum_average)
     handlers->on_new_num_sum_average(handlers,aData, bData);
 }
+/**
+ * @brief push一个红外信号到AStart AEnd BStart Bend到signals中
+ *
+ * @param handlers
+ * @param signal
+ */
 void static push_ir_signal_to_signals(human_detecter_handler_t *handlers,
                                       ir_signal_t signal) {
   if (handlers->n_singls == ARRARY_SIZE(handlers->signals)) {
     return;
+  }
+  //状态切换
+  if (signal.type == kAStartType) {
+    handlers->a_ir_receive_state = kOnReceiveingIrDataState;
+  } else if (signal.type == kAStopType) {
+    handlers->a_ir_receive_state = kOnReceiveingNothingState;
+  } else if (signal.type == kBStartType) {
+    handlers->b_ir_receive_state = kOnReceiveingIrDataState;
+  } else if (signal.type == kBStopType) {
+    handlers->b_ir_receive_state = kOnReceiveingNothingState;
   }
   handlers->signals[handlers->n_singls] = signal;
   handlers->n_singls++;
 
   if (handlers->on_new_signal) handlers->on_new_signal(handlers, signal);
 }
-void static clear_ir_signal_to_signals(human_detecter_handler_t *handlers,
-                                       uint8_t offset) {
-  if (handlers->n_singls <= offset) return;
-  /**TODO:效率低下部分**/
-  memmove(&handlers->signals[offset], &handlers->signals[offset + 1],
-          handlers->n_singls - 1 - offset * sizeof(handlers->signals[0]));
+/**
+ * @brief 清理掉remove_flag == true的 ir_signal
+ *
+ * @param handlers
+ * @param offset 在signals数组中的偏移
+ */
+void static clear_ir_signal_to_signals(human_detecter_handler_t *handlers) {
+  if (!handlers->some_signals_need_to_removed) return;
+  ir_signal_t signals[kSignalArrarySzie];
+  int16_t n_signals = 0;
+  for (int16_t i = 0; i < handlers->n_singls; i++) {
+    if (!handlers->signals[i].remove_flag) {
+      signals[n_signals] = handlers->signals[i];
+      n_signals++;
+    }
+  }
+  memcpy(handlers->signals, signals, n_signals);
+  handlers->n_singls = n_signals;
+  handlers->some_signals_need_to_removed = false;
+}
+/**
+ * @brief 设置ir_signal_remove_flag =
+ * true,注意在调用完该方法后，需要调用clear_ir_signal_to_signals才能真正的将ir_singnal从数组中清理掉
+ *
+ * @param signal
+ */
+void static ir_signals_set_remove_flag(human_detecter_handler_t *handlers,
+                                       ir_signal_t *signal) {
+  handlers->some_signals_need_to_removed = true;
+  signal->remove_flag = true;
 }
 /*
       _        _
@@ -134,7 +178,7 @@ static bool prepare_num_sum_average(human_detecter_handler_t *handlers,
 static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
                                         ir_receive_signal_time_domain_e domain,
                                         uint32_t cur_offset,
-                                        uint32_t max_offset,
+                                        uint32_t window_size,
                                         bool *signals_update);
 /**
  * @brief 填充ir_signals
@@ -185,15 +229,14 @@ static bool prepare_num_sum_average(human_detecter_handler_t *handlers,
   //如果数据还没有达到窗口的大小，则返回等待数据准备ok
   infinite_arrary_u8 *aod_buffer = &handlers->a_origion_data;
   infinite_arrary_u8 *bod_buffer = &handlers->b_origion_data;
-
-  if (offset + kOrigionDataProcessWindowsSize <
-      infinite_arrary_get_useful_end_offset_u8(aod_buffer)) {
+  if (infinite_arrary_get_useful_end_offset_u8(aod_buffer) <
+      (int32_t)(offset + kOrigionDataProcessWindowsSize)) {
     /* code */
     return false;
   }
 
-  if (offset + kOrigionDataProcessWindowsSize <
-      infinite_arrary_get_useful_end_offset_u8(bod_buffer)) {
+  if (infinite_arrary_get_useful_end_offset_u8(bod_buffer) <
+      (int32_t)(offset + kOrigionDataProcessWindowsSize)) {
     /* code */
     return false;
   }
@@ -203,8 +246,9 @@ static bool prepare_num_sum_average(human_detecter_handler_t *handlers,
   uint8_t a_num_sum_average = 0;
   {
     uint32_t sum_power = 0;
-    for (unsigned i = offset; i < kOrigionDataProcessWindowsSize; ++i) {
-      sum_power = +infinite_arrary_get_u8(aod_buffer, i);
+    for (unsigned i = offset; i < offset + kOrigionDataProcessWindowsSize;
+         ++i) {
+      sum_power += infinite_arrary_get_u8(aod_buffer, i);
     }
     a_num_sum_average = sum_power / kOrigionDataProcessWindowsSize;
   }
@@ -212,8 +256,9 @@ static bool prepare_num_sum_average(human_detecter_handler_t *handlers,
   uint8_t b_num_sum_average = 0;
   {
     uint32_t sum_power = 0;
-    for (unsigned i = offset; i < kOrigionDataProcessWindowsSize; ++i) {
-      sum_power = +infinite_arrary_get_u8(bod_buffer, i);
+    for (unsigned i = offset; i < offset + kOrigionDataProcessWindowsSize;
+         ++i) {
+      sum_power += infinite_arrary_get_u8(bod_buffer, i);
     }
     b_num_sum_average = sum_power / kOrigionDataProcessWindowsSize;
   }
@@ -223,10 +268,55 @@ static bool prepare_num_sum_average(human_detecter_handler_t *handlers,
   return true;
 }
 
+static bool is_up_tend(infinite_arrary_u8 *num_average_buf, uint32_t cur_offset,
+                       uint32_t window_size) {
+  //判断趋势是上升的条件
+  //最大偏移的max_offset拿到的num_average_buf数据大于偏移cur_offset所在的数据
+  //连续几个点每个点的数据要大于等于上一个的点的数据
+  bool max_lagger_than_min_flag = false;
+  if (infinite_arrary_get_u8(num_average_buf, cur_offset + window_size - 1) >
+      infinite_arrary_get_u8(num_average_buf, cur_offset)) {
+    max_lagger_than_min_flag = true;
+  }
+
+  bool is_up_tend = true;
+  for (unsigned i = cur_offset + 1; i < cur_offset + window_size; ++i) {
+    if (infinite_arrary_get_u8(num_average_buf, i) >=
+        infinite_arrary_get_u8(num_average_buf, i - 1)) {
+      continue;
+    }
+    break;
+    is_up_tend = false;
+  }
+  if (max_lagger_than_min_flag && is_up_tend) return true;
+  return false;
+}
+static bool is_down_tend(infinite_arrary_u8 *num_average_buf,
+                         uint32_t cur_offset, uint32_t window_size) {
+  //逻辑同is_up_tend
+  bool max_little_than_min_flag = false;
+  if (infinite_arrary_get_u8(num_average_buf, cur_offset + window_size - 1) <
+      infinite_arrary_get_u8(num_average_buf, cur_offset)) {
+    max_little_than_min_flag = true;
+  }
+
+  bool is_dow_tend = true;
+  for (unsigned i = cur_offset + 1; i < cur_offset + window_size; ++i) {
+    if (infinite_arrary_get_u8(num_average_buf, i) <=
+        infinite_arrary_get_u8(num_average_buf, i - 1)) {
+      continue;
+    }
+    break;
+    is_dow_tend = false;
+  }
+  if (max_little_than_min_flag && is_dow_tend) return true;
+  return false;
+}
+
 static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
                                         ir_receive_signal_time_domain_e domain,
                                         uint32_t cur_offset,
-                                        uint32_t max_offset,
+                                        uint32_t windows_size,
                                         bool *signals_update) {
   infinite_arrary_u8 *num_average_buf;
   ir_receiver_state_e *ir_receive_state;
@@ -244,47 +334,35 @@ static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
     uint8_t curNumAverageValue =
         infinite_arrary_get_u8(num_average_buf, cur_offset);
     //   判断是否是上升趋势
-    bool is_up_tend = true;
-    for (unsigned i = cur_offset + 1; i < max_offset; ++i) {
-      if (infinite_arrary_get_u8(num_average_buf, i) <
-          infinite_arrary_get_u8(num_average_buf, i - 1)) {
-        is_up_tend = false;
-        break;
-      }
-    }
+
+    bool is_up_tend_flag =
+        is_up_tend(num_average_buf, cur_offset, windows_size);
+
     bool useful = false;
-    if (curNumAverageValue >= kHighNumSumAverageThreshold && is_up_tend) {
+    if (curNumAverageValue >= kHighNumSumAverageThreshold && is_up_tend_flag) {
       useful = true;
-    } else if (curNumAverageValue == kMaxNumSumAverage) {
+    } else if (curNumAverageValue >= kSecondHighNumSumAverageThreshold) {
       useful = true;
     }
 
     if (useful) {
-      if (curNumAverageValue >= kHighNumSumAverageThreshold && is_up_tend) {
-        ir_signal_t signal =
-            build_ir_signal(domain, true /*isStartSignal*/, cur_offset);
-        push_ir_signal_to_signals(handlers, signal);
-        *signals_update = true;
-      }
+      ir_signal_t signal =
+          build_ir_signal(domain, true /*isStartSignal*/, cur_offset);
+      push_ir_signal_to_signals(handlers, signal);
+      *signals_update = true;
     }
 
   } else if (*ir_receive_state == kOnReceiveingIrDataState) {
     uint8_t curNumAverageValue =
         infinite_arrary_get_u8(num_average_buf, cur_offset);
 
-    bool is_down_tend = true;
-    for (unsigned i = cur_offset + 1; i < max_offset; ++i) {
-      if (infinite_arrary_get_u8(num_average_buf, i) >
-          infinite_arrary_get_u8(num_average_buf, i - 1)) {
-        is_down_tend = false;
-        break;
-      }
-    }
+    bool is_down_tend_flag =
+        is_down_tend(num_average_buf, cur_offset, windows_size);
 
     bool useful = false;
-    if (curNumAverageValue <= kLowNumSumAverageThreshold && is_down_tend) {
+    if (curNumAverageValue <= kLowNumSumAverageThreshold && is_down_tend_flag) {
       useful = true;
-    } else if (curNumAverageValue == kMinNumSumAverage) {
+    } else if (curNumAverageValue <= kSecondLowNumSumAverageThreshold) {
       useful = true;
     }
 
@@ -310,20 +388,20 @@ static bool prepare_ir_signals(human_detecter_handler_t *handlers,
                                uint32_t offset, bool *signals_update) {
   //检查计算所需要的数据是否充足，不充足则返回
   if (infinite_arrary_get_useful_end_offset_u8(&handlers->a_num_sum_average) <
-      offset + kPrepareIrSignalsProcessWindowSize) {
+      (int32_t)(offset + kPrepareIrSignalsProcessWindowSize)) {
     return false;
   }
   if (infinite_arrary_get_useful_end_offset_u8(&handlers->b_num_sum_average) <
-      offset + kPrepareIrSignalsProcessWindowSize) {
+      (int32_t)(offset + kPrepareIrSignalsProcessWindowSize)) {
     return false;
   }
   //准备AS,或者AE
   prepare_ir_signals_internal(handlers, kADomain, offset,
-                              offset + kPrepareIrSignalsProcessWindowSize,
+                              kPrepareIrSignalsProcessWindowSize,
                               signals_update);
   //准备BS,或者BE
   prepare_ir_signals_internal(handlers, kBDomain, offset,
-                              offset + kPrepareIrSignalsProcessWindowSize,
+                              kPrepareIrSignalsProcessWindowSize,
                               signals_update);
   return true;
 }
@@ -352,16 +430,17 @@ static void judge_human_num_and_moving_direction(
         signals[i + 2].type == kAStartType &&
         signals[i + 3].type == kAStopType) {
       /* code */
-      clear_ir_signal_to_signals(handlers, i);
-      clear_ir_signal_to_signals(handlers, i + 1);
+      ir_signals_set_remove_flag(handlers,&signals[i]);
+      ir_signals_set_remove_flag(handlers,&signals[i+1]);
     } else if (signals[i].type == kAStartType &&
                signals[i + 1].type == kAStopType &&
                signals[i + 2].type == kAStartType &&
                signals[i + 3].type == kAStopType) {
-      clear_ir_signal_to_signals(handlers, i);
-      clear_ir_signal_to_signals(handlers, i + 1);
+      ir_signals_set_remove_flag(handlers,&signals[i]);
+      ir_signals_set_remove_flag(handlers,&signals[i + 1]);
     }
   }
+  clear_ir_signal_to_signals(handlers);
 
   //人数，人的运动方向判断
   bool as_is_ready = false, ae_is_ready = false, bs_is_ready = false,
@@ -410,10 +489,12 @@ static void judge_human_num_and_moving_direction(
     }
 
     //清理处理过的信号
-    clear_ir_signal_to_signals(handlers, as_of);
-    clear_ir_signal_to_signals(handlers, ae_of);
-    clear_ir_signal_to_signals(handlers, bs_of);
-    clear_ir_signal_to_signals(handlers, be_of);
+    ir_signals_set_remove_flag(handlers,&signals[as_of]);
+    ir_signals_set_remove_flag(handlers,&signals[ae_of]);
+    ir_signals_set_remove_flag(handlers,&signals[bs_of]);
+    ir_signals_set_remove_flag(handlers,&signals[be_of]);
+
+    clear_ir_signal_to_signals(handlers);
   }
 
   if (handlers->n_singls == ARRARY_SIZE(handlers->signals)) {

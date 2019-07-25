@@ -9,10 +9,8 @@ set(CMAKE_INSTALL_RPATH "./lib")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # PLATFORM can be pc 3329 警告配置
-set(
-  COMMON_FLAGS
-  " ${COMMON_FLAGS} -Werror=return-type -Werror=parentheses  -Wall  -Wno-deprecated-declarations -Wno-unused-variable "
-  )
+set(COMMON_FLAGS
+    " ${COMMON_FLAGS} -Werror=return-type -Werror=parentheses  -Wall")
 # 栈信息配置
 set(
   COMMON_FLAGS
@@ -22,8 +20,7 @@ set(
 set(COMMON_FLAGS "${COMMON_FLAGS} -O1 -g3")
 # 如果使用c++17,在pc下编译会rest_rpc会出错，原因是c++17对应的gcc版本是需要大于6.0的，而pc上不是
 #
-set(CMAKE_CXX_FLAGS
-    "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} -std=c++14 -pthread -Wno-reorder")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_FLAGS} -std=c++14 -pthread")
 set(
   CMAKE_CXX_FLAGS
   "${CMAKE_CXX_FLAGS} -DWEBRTC_APM_DEBUG_DUMP=0 -DWEBRTC_POSIX -DWEBRTC_LINUX -DASIO_STANDALONE"

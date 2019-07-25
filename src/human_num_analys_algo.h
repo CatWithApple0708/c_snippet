@@ -5,14 +5,14 @@
 #include "infinite_arrary.h"
 #include "loop_queue.h"
 /*IrSignals数组的Size---存放 AStart,AEnd,BStart,Bend的数组*/
-#define kSignalArrarySzie (10)
+#define kSignalArrarySzie (20)
 
 /*原始数据移动窗口的大小*/
 #define kOrigionDataProcessWindowsSize (20)
 /*原始数据窗口每次移动的距离*/
 #define kOrigionDataProcessWindowsMoveSize (1)
 /*利用数量和，和能量均值，做相应计算时候的窗口的大小*/
-#define kPrepareIrSignalsProcessWindowSize (4)
+#define kPrepareIrSignalsProcessWindowSize (5)
 //调用human_num_analys_process的周期
 #define kRecomendedProcessPeriod (16)
 //数量求和均值最大值
@@ -21,11 +21,13 @@
 #define kMinNumSumAverage (0)
 //数量求和均值，判断定Start阈值
 #define kHighNumSumAverageThreshold (75)
+#define kSecondHighNumSumAverageThreshold (90)
 //数量求和均值，判断End阈值
 #define kLowNumSumAverageThreshold (25)
+#define kSecondLowNumSumAverageThreshold (10)
 
 //缓存数据的buf大小
-#define kLoopQueueSize (50)
+#define kLoopQueueSize (20)
 #define kInfiniteArrarySize (100)
 
 /**
@@ -75,6 +77,7 @@ typedef struct ir_signal_s ir_signal_t;
 struct ir_signal_s {
   ir_receive_signal_type_e type;
   //数量求和buffer，或者能量平均buffer的offset
+  bool remove_flag;
   uint32_t offset;
 };
 typedef struct human_detecter_handler_s human_detecter_handler_t;
@@ -109,6 +112,7 @@ struct human_detecter_handler_s {
   // AB开始结束
   ir_signal_t signals[kSignalArrarySzie];
   int16_t n_singls;
+  bool some_signals_need_to_removed;
   /**
    * @brief 表示原始数据已经有多少已经被处理了
    */
