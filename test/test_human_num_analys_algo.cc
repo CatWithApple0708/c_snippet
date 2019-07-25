@@ -74,7 +74,7 @@ void confingLogger() {
   s_signalLogger = basic_logger_mt("signalLogger", "signalLogger.log", true);
 
   s_judgeResultLogger->sinks().push_back(sink);
-  s_numSumAverageLogger->sinks().push_back(sink);
+  // s_numSumAverageLogger->sinks().push_back(sink);
   s_signalLogger->sinks().push_back(sink);
 }
 

@@ -285,8 +285,8 @@ static bool is_up_tend(infinite_arrary_u8 *num_average_buf, uint32_t cur_offset,
         infinite_arrary_get_u8(num_average_buf, i - 1)) {
       continue;
     }
-    break;
     is_up_tend = false;
+    break;
   }
   if (max_lagger_than_min_flag && is_up_tend) return true;
   return false;
@@ -306,8 +306,8 @@ static bool is_down_tend(infinite_arrary_u8 *num_average_buf,
         infinite_arrary_get_u8(num_average_buf, i - 1)) {
       continue;
     }
-    break;
     is_dow_tend = false;
+    break;
   }
   if (max_little_than_min_flag && is_dow_tend) return true;
   return false;
@@ -467,22 +467,22 @@ static void judge_human_num_and_moving_direction(
 
   if (as_is_ready && ae_is_ready && bs_is_ready && be_is_ready) {
     if (is_increase_order(as_of, bs_of, ae_of, be_of)) {
-      // as<bs<ae<be
+      // as<bs<ae<be 1,3,2,4
       //进来一个人
       if (handlers->on_judge_result)
         handlers->on_judge_result(handlers, kInDirection, 1);
     } else if (is_increase_order(bs_of, as_of, be_of, ae_of)) {
-      // bs,as,be,ae
+      // bs,as,be,ae 3,1,4,2
       //出去一个人
       if (handlers->on_judge_result)
         handlers->on_judge_result(handlers, kOutDirection, 1);
     } else if (is_increase_order(as_of, ae_of, bs_of, be_of)) {
-      // as ae bs be
+      // as ae bs be 1,2,3,4
       //进来一个人
       if (handlers->on_judge_result)
         handlers->on_judge_result(handlers, kInDirection, 1);
     } else if (is_increase_order(bs_of, be_of, as_of, ae_of)) {
-      // bs be as ae
+      // bs be as ae 3,4,1,2
       //出去一个人
       if (handlers->on_judge_result)
         handlers->on_judge_result(handlers, kOutDirection, 1);
