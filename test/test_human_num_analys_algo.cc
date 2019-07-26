@@ -42,15 +42,15 @@ static inline string human_moving_direction_t_to_str(
 static string ir_signal_t_to_str(const ir_signal_t &ir_signal) {
   string ret;
   if (ir_signal.type == kAStartType) {
-    ret = fmt::format("{}_{}", ir_signal.offset, "kAStartType");
+    ret = fmt::format("{}_{}", ir_signal.num_sum_offset, "kAStartType");
   } else if (ir_signal.type == kAStopType) {
-    ret = fmt::format("{}_{}", ir_signal.offset, "kAStopType");
+    ret = fmt::format("{}_{}", ir_signal.num_sum_offset, "kAStopType");
   } else if (ir_signal.type == kBStartType) {
-    ret = fmt::format("{}_{}", ir_signal.offset, "kBStartType");
+    ret = fmt::format("{}_{}", ir_signal.num_sum_offset, "kBStartType");
   } else if (ir_signal.type == kBStopType) {
-    ret = fmt::format("{}_{}", ir_signal.offset, "kBStopType");
+    ret = fmt::format("{}_{}", ir_signal.num_sum_offset, "kBStopType");
   } else {
-    ret = fmt::format("{}_{}", ir_signal.offset, "unkownType");
+    ret = fmt::format("{}_{}", ir_signal.num_sum_offset, "unkownType");
   }
   return ret;
 }
@@ -91,6 +91,11 @@ static void on_new_signal(human_detecter_handler_t *handler,
                           ir_signal_t new_signal) {
   s_signalLogger->info("signal {}", ir_signal_t_to_str(new_signal));
 }
+static void on_preliminary_judge_result(human_detecter_handler_t *handlers,
+                                        human_moving_direction_t direction) {
+  s_judgeResultLogger->info("pre judge_result {}",
+                            human_moving_direction_t_to_str(direction));
+}
 
 vector<uint8_t> a_data;
 vector<uint8_t> b_data;
@@ -100,7 +105,8 @@ int main(int argc, char *const argv[]) {
   confingLogger();
 
   human_num_analys_init_for_debug(&handler, on_new_num_sum_average,
-                                  on_new_signal, on_judge_result);
+                                  on_new_signal, on_preliminary_judge_result,
+                                  on_judge_result);
   if (argc != 2) {
     s_console->error("./test_human_num_analys_algo data.json");
     return -1;
@@ -120,9 +126,9 @@ int main(int argc, char *const argv[]) {
   for (s_i = 0; s_i < a_data.size(); s_i++) {
     /* code */
     human_num_analys_push_origion_data(&handler, kADomain,
-                                       a_data[s_i] * 100 / 23);
+                                       a_data[s_i] * 100 / 30);
     human_num_analys_push_origion_data(&handler, kBDomain,
-                                       b_data[s_i] * 100 / 23);
+                                       b_data[s_i] * 100 / 30);
     human_num_analys_process(&handler);
   }
 

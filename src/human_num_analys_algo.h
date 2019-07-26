@@ -13,6 +13,7 @@
 #define kOrigionDataProcessWindowsMoveSize (1)
 /*利用数量和，和能量均值，做相应计算时候的窗口的大小*/
 #define kPrepareIrSignalsProcessWindowSize (5)
+#define kPrepareIrSignalsProcessWindowMoveSize (1)
 //调用human_num_analys_process的周期
 #define kRecomendedProcessPeriod (16)
 //数量求和均值最大值
@@ -20,10 +21,10 @@
 //数量求和均值最小值
 #define kMinNumSumAverage (0)
 //数量求和均值，判断定Start阈值
-#define kHighNumSumAverageThreshold (75)
-#define kSecondHighNumSumAverageThreshold (90)
+#define kHighNumSumAverageThreshold (45)
+#define kSecondHighNumSumAverageThreshold (60)
 //数量求和均值，判断End阈值
-#define kLowNumSumAverageThreshold (25)
+#define kLowNumSumAverageThreshold (20)
 #define kSecondLowNumSumAverageThreshold (10)
 
 //缓存数据的buf大小
@@ -78,7 +79,7 @@ struct ir_signal_s {
   ir_receive_signal_type_e type;
   //数量求和buffer，或者能量平均buffer的offset
   bool remove_flag;
-  uint32_t offset;
+  uint32_t num_sum_offset;
 };
 typedef struct human_detecter_handler_s human_detecter_handler_t;
 typedef void (*on_judge_result_t)(human_detecter_handler_t* handlers,
@@ -87,6 +88,9 @@ typedef void (*on_new_num_sum_average_t)(human_detecter_handler_t* handlers,
                                          uint8_t adata, uint8_t bdata);
 typedef void (*on_new_signal_t)(human_detecter_handler_t* handlers,
                                 ir_signal_t new_signal);
+//开灯逻辑依赖的回调
+typedef void (*on_preliminary_judge_result_t)(
+    human_detecter_handler_t* handlers, human_moving_direction_t direction);
 
 struct human_detecter_handler_s {
   uint8_t a_origion_data_queue_buf[kLoopQueueSize];
@@ -127,22 +131,30 @@ struct human_detecter_handler_s {
   ir_receiver_state_e b_ir_receive_state;
 
   on_judge_result_t on_judge_result;
+  on_preliminary_judge_result_t on_preliminary_judge_result;
 
   bool debug_mode;
   on_new_num_sum_average_t on_new_num_sum_average;
   on_new_signal_t on_new_signal;
+
+  uint32_t last_preliminary_judge_off;
+  bool last_preliminary_judge_off_flag;
 };
 /**
  * @brief 模块初始化
  *
  */
-void human_num_analys_init(human_detecter_handler_t* handlers,
-                           on_judge_result_t on_judge_result);
+void human_num_analys_init(
+    human_detecter_handler_t* handlers,
+    on_preliminary_judge_result_t on_preliminary_judge_result,
+    on_judge_result_t on_judge_result);
 
 void human_num_analys_init_for_debug(
     human_detecter_handler_t* handlers,
     on_new_num_sum_average_t on_new_num_sum_average,
-    on_new_signal_t on_new_signal, on_judge_result_t on_judge_result);
+    on_new_signal_t on_new_signal,
+    on_preliminary_judge_result_t on_preliminary_judge_result,
+    on_judge_result_t on_judge_result);
 /**
  * @brief 压入一个新的红外原始数据
  *

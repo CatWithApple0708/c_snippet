@@ -24,6 +24,9 @@ static __attribute__((__unused__)) void build_check_func() {
   BUILD_ASSERT(kSignalArrarySzie >= 10);
   BUILD_ASSERT(kHighNumSumAverageThreshold < kMaxNumSumAverage);
   BUILD_ASSERT(kHighNumSumAverageThreshold > kMinNumSumAverage);
+  //这里的偏移之所以设置为一，是因为默认NumSumAverage中数组的偏移和原始数据的偏移一致，
+  //这样signals中的ir_signal所对应的偏移就是原始数据中的偏移
+  BUILD_ASSERT(kPrepareIrSignalsProcessWindowMoveSize == 1);
 }
 /*
    ___ _        _   _
@@ -53,9 +56,74 @@ static ir_signal_t build_ir_signal(ir_receive_signal_time_domain_e domain,
   } else {
     type = isStartSignal ? kBStartType : kBStopType;
   }
-  ir_signal_t result = {.type = type, .offset = offset, .remove_flag = false};
+  ir_signal_t result = {.type = type, .num_sum_offset = offset, .remove_flag = false};
   return result;
 }
+/**
+ * @brief 找到signal
+ *
+ * @param handlers
+ * @param signal_type
+ * @param start_off 开始偏移，这里的偏移指的的在原始数据中数据所在偏移
+ * @param end_off 　结束偏移
+ * @return ir_signal_t*
+ */
+static ir_signal_t *find_ir_signal(human_detecter_handler_t *handlers,
+                            ir_receive_signal_type_e signal_type,
+                            uint32_t start_off, uint32_t end_off) {
+  for (int i = 0; i < handlers->n_singls; i++) {
+    if (handlers->signals[i].num_sum_offset < start_off) continue;
+    if (handlers->signals[i].num_sum_offset > end_off) break;
+    if (handlers->signals[i].type == signal_type) return &handlers->signals[i];
+  }
+  return NULL;
+}
+static int32_t get_ir_signal_off_in_signals_vector(
+    human_detecter_handler_t *handlers, ir_signal_t *signal) {
+  return (signal - handlers->signals);
+}
+/**
+ * @brief 查找signal
+ *
+ * @param handlers
+ * @param signal_type
+ * @return ir_signal_t*
+ */
+static ir_signal_t *find_ir_signal_all(human_detecter_handler_t *handlers,
+                                       ir_receive_signal_type_e signal_type) {
+  return find_ir_signal(handlers, signal_type, 0,
+                        handlers->signals[handlers->n_singls - 1].num_sum_offset);
+};
+/**
+ * @brief 查找signal before off
+ * 
+ * @param handlers 
+ * @param signal_type 
+ * @param off 
+ * @return ir_signal_t* 
+ */
+static inline ir_signal_t *find_ir_signal_before(human_detecter_handler_t *handlers,
+                                   ir_receive_signal_type_e signal_type,
+                                   uint32_t off) {
+  if (off == 0) return NULL;
+  return find_ir_signal(handlers, signal_type, 0, off - 1);
+};
+/**
+ * @brief 查找signal after off
+ * 
+ * @param handlers 
+ * @param signal_type 
+ * @param off 
+ * @return ir_signal_t* 
+ */
+static inline ir_signal_t *find_ir_signal_after(
+    human_detecter_handler_t *handlers, ir_receive_signal_type_e signal_type,
+    int off) {
+  return find_ir_signal(handlers, signal_type, off + 1,
+                        handlers->signals[handlers->n_singls - 1].num_sum_offset);
+};
+
+
 static bool is_increase_order(uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
   if (a1 < a2 && a2 < a3 && a3 < a4) {
     return true;
@@ -64,10 +132,10 @@ static bool is_increase_order(uint8_t a1, uint8_t a2, uint8_t a3, uint8_t a4) {
 }
 /**
  * @brief push一个原始数据到buffer中
- * 
- * @param handlers 
- * @param domain 
- * @param data 
+ *
+ * @param handlers
+ * @param domain
+ * @param data
  */
 void static push_origion_data_to_buffer(human_detecter_handler_t *handlers,
                                         ir_receive_signal_time_domain_e domain,
@@ -78,13 +146,12 @@ void static push_origion_data_to_buffer(human_detecter_handler_t *handlers,
     infinite_arrary_push_u8(&handlers->b_origion_data, data);
   }
 }
-void static push_num_sum_average_to_buffer(
-    human_detecter_handler_t *handlers, 
-    uint8_t aData,uint8_t bData) {
-    infinite_arrary_push_u8(&handlers->a_num_sum_average, aData);
-    infinite_arrary_push_u8(&handlers->b_num_sum_average, bData);
+void static push_num_sum_average_to_buffer(human_detecter_handler_t *handlers,
+                                           uint8_t aData, uint8_t bData) {
+  infinite_arrary_push_u8(&handlers->a_num_sum_average, aData);
+  infinite_arrary_push_u8(&handlers->b_num_sum_average, bData);
   if (handlers->on_new_num_sum_average)
-    handlers->on_new_num_sum_average(handlers,aData, bData);
+    handlers->on_new_num_sum_average(handlers, aData, bData);
 }
 /**
  * @brief push一个红外信号到AStart AEnd BStart Bend到signals中
@@ -332,7 +399,7 @@ static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
   // toStartState
   if (*ir_receive_state == kOnReceiveingNothingState) {
     uint8_t curNumAverageValue =
-        infinite_arrary_get_u8(num_average_buf, cur_offset);
+        infinite_arrary_get_u8(num_average_buf, cur_offset + windows_size - 1);
     //   判断是否是上升趋势
 
     bool is_up_tend_flag =
@@ -354,7 +421,7 @@ static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
 
   } else if (*ir_receive_state == kOnReceiveingIrDataState) {
     uint8_t curNumAverageValue =
-        infinite_arrary_get_u8(num_average_buf, cur_offset);
+        infinite_arrary_get_u8(num_average_buf, cur_offset + windows_size - 1);
 
     bool is_down_tend_flag =
         is_down_tend(num_average_buf, cur_offset, windows_size);
@@ -366,7 +433,6 @@ static void prepare_ir_signals_internal(human_detecter_handler_t *handlers,
       useful = true;
     }
 
-    /*TODO:complete it*/
     if (useful) {
       ir_signal_t signal =
           build_ir_signal(domain, false /*isStartSignal*/, cur_offset);
@@ -407,9 +473,94 @@ static bool prepare_ir_signals(human_detecter_handler_t *handlers,
 }
 /**
  * @brief
+ * 初步判断人向屋内，或者屋外移动,这里有个前提是，signals_buffer中存储的东西必须当前的即时数
  *
+ * @param handlers
+ *
+ * A: astart
+ * B: bstart
  */
+static bool find_value_large_than_u8(infinite_arrary_u8 *buffer, uint8_t value,
+                                     int start_off) {
+  for (int i = start_off;
+       i < infinite_arrary_get_useful_end_offset_u8(buffer)+1; i++) {
+    if (infinite_arrary_get_u8(buffer, i) > value) {
+      return true;
+    }
+  }
+  return false;
+}
+static void preliminary_judge_human_moving_on_xxx_direction(
+    human_detecter_handler_t *handlers, int32_t signaloff,
+    human_moving_direction_t dirction) {
+  handlers->last_preliminary_judge_off_flag = true;
+  handlers->last_preliminary_judge_off = signaloff;
+  if (handlers->on_preliminary_judge_result)
+    handlers->on_preliminary_judge_result(handlers, dirction);
+  return;
+}
+static void preliminary_judge_human_moving(
+    human_detecter_handler_t *handlers) {
 
+  ir_signal_t *as_singnal = find_ir_signal_all(handlers, kAStartType);
+  ir_signal_t *bs_singnal = find_ir_signal_all(handlers, kBStartType);
+
+  {  //找到第一Start信号，并判断是否已经进行过人数的初步判断
+    ir_signal_t *first_signal = NULL;
+    if (as_singnal != NULL && bs_singnal != NULL) {
+      int32_t aoff = get_ir_signal_off_in_signals_vector(handlers, as_singnal);
+      int32_t boff = get_ir_signal_off_in_signals_vector(handlers, bs_singnal);
+
+      if (aoff < boff)
+        first_signal = as_singnal;
+      else
+        first_signal = bs_singnal;
+    } else if (as_singnal != NULL) {
+      first_signal = as_singnal;
+    } else if (bs_singnal != NULL) {
+      first_signal = bs_singnal;
+    }
+
+    if (first_signal == NULL) return;
+
+    if (first_signal != NULL) {
+      if (first_signal->num_sum_offset ==
+              handlers->last_preliminary_judge_off &&
+          handlers->last_preliminary_judge_off_flag) {
+        return;
+      }
+    }
+  }
+
+  //初步判断人数和人移动方向
+  if (as_singnal != NULL && bs_singnal != NULL) {
+    //一般不会出现ABstart同时触发的情况，如果出现以两个信号在数组中的位置决定谁先谁后。
+    #if 1
+    int32_t aoff = get_ir_signal_off_in_signals_vector(handlers, as_singnal);
+    int32_t boff = get_ir_signal_off_in_signals_vector(handlers, bs_singnal);
+    if (aoff < boff)
+      preliminary_judge_human_moving_on_xxx_direction(
+          handlers, as_singnal->num_sum_offset, kInDirection);
+    else
+      preliminary_judge_human_moving_on_xxx_direction(
+          handlers, bs_singnal->num_sum_offset, kOutDirection);
+    #endif
+  } else if (as_singnal != NULL) {
+    if (find_value_large_than_u8(&handlers->b_num_sum_average,
+                                 kHighNumSumAverageThreshold,
+                                 as_singnal->num_sum_offset)) {
+      preliminary_judge_human_moving_on_xxx_direction(
+          handlers, as_singnal->num_sum_offset, kInDirection);
+    }
+  } else if (bs_singnal != NULL) {
+    if (find_value_large_than_u8(&handlers->a_num_sum_average,
+                                 kHighNumSumAverageThreshold,
+                                 bs_singnal->num_sum_offset)) {
+      preliminary_judge_human_moving_on_xxx_direction(
+          handlers, bs_singnal->num_sum_offset, kOutDirection);
+    }
+  }
+}
 //判断方式:
 // 首先找到一个开始，然后等待其对应的结束。
 // 判断开始和结束之间是否存在另外一个信号的开始，如果不存在，则抛弃当前这两个信号的开始和结束
@@ -418,14 +569,19 @@ static bool prepare_ir_signals(human_detecter_handler_t *handlers,
 //　判断完成后抛弃这四个信号，对剩下的信号做相同的处理。
 static void judge_human_num_and_moving_direction(
     human_detecter_handler_t *handlers) {
+  // 4.初步判断人移动的方向
+
   ir_signal_t *signals = handlers->signals;
   if (handlers->n_singls < 4) {
     return;
   }
   //初步过滤掉多余的信号,TODO:这里的过滤鲁棒性有待改善
   // AS,AE,AS xxxx, 删除掉 后面的AS,AE
-  // BS,BE,BS xxxx, 删除掉 后面的BS,BE
-  for (unsigned i = 0; i + 4 < handlers->n_singls; ++i) {
+  // BS,BE,BS xxxx, 删除掉 后面的BS,BElk
+  for (unsigned i = 0;
+       i + 3 <
+       handlers->n_singls /*进行一次判断所需要的信号至少是3个 As Ae As*/;
+       ++i) {
     if (signals[i].type == kAStartType && signals[i + 1].type == kAStopType &&
         signals[i + 2].type == kAStartType) {
       /* code */
@@ -441,64 +597,70 @@ static void judge_human_num_and_moving_direction(
   clear_ir_signal_to_signals(handlers);
 
   //人数，人的运动方向判断
-  bool as_is_ready = false, ae_is_ready = false, bs_is_ready = false,
-       be_is_ready = false;
-  uint8_t as_of = 0, ae_of = 0, bs_of = 0, be_of = 0;
-  for (unsigned i = 0; i < handlers->n_singls; ++i) {
-    if (signals[i].type == kAStartType) {
-      as_is_ready = true;
-      as_of = i;
-    } else if (signals[i].type == kAStopType) {
-      ae_is_ready = true;
-      ae_of = i;
-    } else if (signals[i].type == kBStartType) {
-      bs_is_ready = true;
-      bs_of = i;
-    } else if (signals[i].type == kBStopType) {
-      be_is_ready = true;
-      be_of = i;
+  while (true) {
+    bool as_is_ready = false, ae_is_ready = false, bs_is_ready = false,
+         be_is_ready = false;
+    uint8_t as_of = 0, ae_of = 0, bs_of = 0, be_of = 0;
+    for (unsigned i = 0; i < handlers->n_singls; ++i) {
+      if (signals[i].type == kAStartType) {
+        as_is_ready = true;
+        as_of = i;
+      } else if (signals[i].type == kAStopType) {
+        ae_is_ready = true;
+        ae_of = i;
+      } else if (signals[i].type == kBStartType) {
+        bs_is_ready = true;
+        bs_of = i;
+      } else if (signals[i].type == kBStopType) {
+        be_is_ready = true;
+        be_of = i;
+      }
+      if (as_is_ready && ae_is_ready && bs_is_ready && be_is_ready) {
+        break;
+      }
     }
+
     if (as_is_ready && ae_is_ready && bs_is_ready && be_is_ready) {
+      if (is_increase_order(as_of, bs_of, ae_of, be_of)) {
+        // as<bs<ae<be 1,3,2,4
+        //进来一个人
+        if (handlers->on_judge_result)
+          handlers->on_judge_result(handlers, kInDirection, 1);
+      } else if (is_increase_order(bs_of, as_of, be_of, ae_of)) {
+        // bs,as,be,ae 3,1,4,2
+        //出去一个人
+        if (handlers->on_judge_result)
+          handlers->on_judge_result(handlers, kOutDirection, 1);
+      } else if (is_increase_order(as_of, ae_of, bs_of, be_of)) {
+        // as ae bs be 1,2,3,4
+        //进来一个人
+        if (handlers->on_judge_result)
+          handlers->on_judge_result(handlers, kInDirection, 1);
+      } else if (is_increase_order(bs_of, be_of, as_of, ae_of)) {
+        // bs be as ae 3,4,1,2
+        //出去一个人
+        if (handlers->on_judge_result)
+          handlers->on_judge_result(handlers, kOutDirection, 1);
+      }
+
+      //清理处理过的信号
+      ir_signals_set_remove_flag(handlers, &signals[as_of]);
+      ir_signals_set_remove_flag(handlers, &signals[ae_of]);
+      ir_signals_set_remove_flag(handlers, &signals[bs_of]);
+      ir_signals_set_remove_flag(handlers, &signals[be_of]);
+
+      clear_ir_signal_to_signals(handlers);
+    } else {
+      //当数据不足去判断一个人进或者出去的时候，结束判断.
       break;
     }
-  }
-
-  if (as_is_ready && ae_is_ready && bs_is_ready && be_is_ready) {
-    if (is_increase_order(as_of, bs_of, ae_of, be_of)) {
-      // as<bs<ae<be 1,3,2,4
-      //进来一个人
-      if (handlers->on_judge_result)
-        handlers->on_judge_result(handlers, kInDirection, 1);
-    } else if (is_increase_order(bs_of, as_of, be_of, ae_of)) {
-      // bs,as,be,ae 3,1,4,2
-      //出去一个人
-      if (handlers->on_judge_result)
-        handlers->on_judge_result(handlers, kOutDirection, 1);
-    } else if (is_increase_order(as_of, ae_of, bs_of, be_of)) {
-      // as ae bs be 1,2,3,4
-      //进来一个人
-      if (handlers->on_judge_result)
-        handlers->on_judge_result(handlers, kInDirection, 1);
-    } else if (is_increase_order(bs_of, be_of, as_of, ae_of)) {
-      // bs be as ae 3,4,1,2
-      //出去一个人
-      if (handlers->on_judge_result)
-        handlers->on_judge_result(handlers, kOutDirection, 1);
-    }
-
-    //清理处理过的信号
-    ir_signals_set_remove_flag(handlers,&signals[as_of]);
-    ir_signals_set_remove_flag(handlers,&signals[ae_of]);
-    ir_signals_set_remove_flag(handlers,&signals[bs_of]);
-    ir_signals_set_remove_flag(handlers,&signals[be_of]);
-
-    clear_ir_signal_to_signals(handlers);
   }
 
   if (handlers->n_singls == ARRARY_SIZE(handlers->signals)) {
     // TODO:这里打印条警告，代码不应该运行到这里
   }
 }
+
 /*
    ___     _
   | __|_ _| |_ ___ _ _ _ _
@@ -506,46 +668,12 @@ static void judge_human_num_and_moving_direction(
   |___/_\_\\__\___|_| |_||_|
 */
 /**
- * @brief 人数检测分析程序，应当运行在某个定时器中，每当数据更新的时候，运行一次
- */
-void human_num_analys_process(human_detecter_handler_t *handlers) {
-  /**
-   * 0. 从LoopQueue中读取数据到x_origion_data_buffer中
-   * 这里之所以使用Queue,是因为红外数据的接收和处理，二者是异步,需要加锁。
-   * 加锁会导致在中断中使用锁，从而导致死锁。循环队列，天然可以无锁操作
-   */
-  read_origion_data_from_queue_to_buffer(handlers);
-
-  while (true) {
-    //准备num_sum_average
-    uint32_t *odp_offset = &handlers->orgion_data_process_offset;
-    if (prepare_num_sum_average(handlers, *odp_offset) == false) {
-      break;
-    }
-
-    uint32_t *pre_irs_offset = &handlers->prepare_ir_signals_process_offset;
-    bool ir_signal_update = false;
-    //准备AStart AEnd BStart BEnd信号
-    if (prepare_ir_signals(handlers, *pre_irs_offset, &ir_signal_update) ==
-        false) {
-      *odp_offset = *odp_offset + kOrigionDataProcessWindowsMoveSize;
-      continue;
-    }
-    //判断人移动的方向
-    if (ir_signal_update) {
-      judge_human_num_and_moving_direction(handlers);
-    }
-
-    *pre_irs_offset = *pre_irs_offset + 1;
-    *odp_offset = *odp_offset + kOrigionDataProcessWindowsMoveSize;
-  }
-};
-
-/**
  * @brief 模块初始化
  */
-void human_num_analys_init(human_detecter_handler_t *handlers,
-                           on_judge_result_t on_judge_result) {
+void human_num_analys_init(
+    human_detecter_handler_t *handlers,
+    on_preliminary_judge_result_t on_preliminary_judge_result,
+    on_judge_result_t on_judge_result) {
   memset(handlers, 0, sizeof(human_detecter_handler_t));
   loop_queue_init_u8(&handlers->a_origion_data_queue,
                      handlers->a_origion_data_queue_buf,
@@ -571,13 +699,16 @@ void human_num_analys_init(human_detecter_handler_t *handlers,
   handlers->a_ir_receive_state = kOnReceiveingNothingState;
   handlers->b_ir_receive_state = kOnReceiveingNothingState;
   handlers->on_judge_result = on_judge_result;
+  handlers->on_preliminary_judge_result = on_preliminary_judge_result;
 }
 
 void human_num_analys_init_for_debug(
     human_detecter_handler_t *handlers,
     on_new_num_sum_average_t on_new_num_sum_average,
-    on_new_signal_t on_new_signal, on_judge_result_t on_judge_result) {
-  human_num_analys_init(handlers, on_judge_result);
+    on_new_signal_t on_new_signal,
+    on_preliminary_judge_result_t on_preliminary_judge_result,
+    on_judge_result_t on_judge_result) {
+  human_num_analys_init(handlers, on_preliminary_judge_result, on_judge_result);
   handlers->on_new_num_sum_average = on_new_num_sum_average;
   handlers->on_new_signal = on_new_signal;
   handlers->debug_mode = true;
@@ -601,6 +732,41 @@ void human_num_analys_push_origion_data(human_detecter_handler_t *handlers,
 /**
  * @brief 人数检测分析程序，应当运行在某个定时器中，每当数据更新的时候，运行一次
  */
+void human_num_analys_process(human_detecter_handler_t *handlers) {
+  /**
+   * 0. 从LoopQueue中读取数据到x_origion_data_buffer中
+   * 这里之所以使用Queue,是因为红外数据的接收和处理，二者是异步,需要加锁。
+   * 加锁会导致在中断中使用锁，从而导致死锁。循环队列，天然可以无锁操作
+   */
+  read_origion_data_from_queue_to_buffer(handlers);
+
+  // 1. 准备求和数据
+  while (true) {
+    uint32_t *odp_offset = &handlers->orgion_data_process_offset;
+    if (prepare_num_sum_average(handlers, *odp_offset) == false) {
+      break;
+    }
+    *odp_offset = *odp_offset + kOrigionDataProcessWindowsMoveSize;
+  }
+
+  // 2. 准备AStart AEnd BStart BEnd信号
+  bool ir_signal_update_falg = false;
+  while (true) {
+    uint32_t *pre_irs_offset = &handlers->prepare_ir_signals_process_offset;
+    bool ir_signal_is_update = false;
+    bool sum_data_is_enough =
+        prepare_ir_signals(handlers, *pre_irs_offset, &ir_signal_is_update);
+    if (ir_signal_is_update) ir_signal_update_falg = true;
+    if (!sum_data_is_enough) break;
+    *pre_irs_offset = *pre_irs_offset + kPrepareIrSignalsProcessWindowMoveSize;
+  }
+  // 3. 初步判断人移动的方向
+  preliminary_judge_human_moving(handlers);
+  // ４.判断人数和人移动的方向
+  if (ir_signal_update_falg) {
+    judge_human_num_and_moving_direction(handlers);
+  }
+};
 
 /**
  * @brief 获得human_num_analys_process所期望的被调度的周期
@@ -616,9 +782,10 @@ int human_num_analys_get_recommend_process_period(
  */
 void human_num_analys_reset(human_detecter_handler_t *handlers) {
   if (!handlers->debug_mode)
-    human_num_analys_init(handlers, handlers->on_judge_result);
+    human_num_analys_init(handlers, handlers->on_preliminary_judge_result,
+                          handlers->on_judge_result);
   else
-    human_num_analys_init_for_debug(handlers, handlers->on_new_num_sum_average,
-                                    handlers->on_new_signal,
-                                    handlers->on_judge_result);
+    human_num_analys_init_for_debug(
+        handlers, handlers->on_new_num_sum_average, handlers->on_new_signal,
+        handlers->on_preliminary_judge_result, handlers->on_judge_result);
 }
