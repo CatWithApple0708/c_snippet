@@ -34,20 +34,14 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
 # PC
-project(HappySwitchSoundBoxV2)
-include_directories(src spdlog_dep)
+project(c_snippet)
+include_directories(src spdlog_dep gtest_dep/pc/include)
 
 # ####  ####
 # #  _____       _
 # # |_   _|__ __| |_
 # #   | |/ -_|_-<  _|
 # #   |_|\___/__/\__|
-add_executable(test_human_num_analys_algo
-               src/human_num_analys_algo.c
-               src/infinite_arrary.c
-               src/loop_queue.c
-               ./test/test_human_num_analys_algo.cc)
-
 #### gtest_main ####
 add_executable(test_main
                src/infinite_arrary.c
@@ -61,5 +55,4 @@ target_link_libraries(test_main
                       glog
                       gflags)
 target_link_directories(test_main PRIVATE gtest_dep/pc/lib)
-target_include_directories(test_main PRIVATE gtest_dep/pc/include ./)
 #### end gtest_main .......
